@@ -1,0 +1,192 @@
+/* ==========================================================================
+   پردهٔ خاموش — design system (Tailwind CSS v4)
+   Dark, cinematic, editorial. RTL-first via logical utilities.
+   ========================================================================== */
+
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #101010;
+  --color-surface: #191919;
+  --color-surface-2: #1f1d1b;
+  --color-ink: #f1e9de;
+  --color-ink-muted: #a5a09a;
+  --color-accent: #a92d38;
+  --color-accent-hover: #bf3541;
+  --color-gold: #c2a46d;
+  --color-line: rgb(241 233 222 / 0.12);
+  --color-line-strong: rgb(241 233 222 / 0.22);
+  --color-error: #e0707a;
+  --color-demo-ink: #e8a0a6;
+
+  --font-body: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+  --font-display: "Estedad", "Vazirmatn", Tahoma, sans-serif;
+
+  --ease-theater: cubic-bezier(0.22, 0.8, 0.28, 1);
+
+  --animate-menu-in: menu-in 0.35s var(--ease-theater);
+  --animate-hint-drop: hint-drop 2.4s var(--ease-theater) infinite;
+  --animate-fade-in: fade-in 0.3s var(--ease-theater);
+  --animate-lightbox-in: lightbox-in 0.4s var(--ease-theater);
+  --animate-price-flip: price-flip 0.45s var(--ease-theater);
+  --animate-ticket-in: ticket-in 0.8s var(--ease-theater);
+
+  @keyframes menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes hint-drop {
+    0% {
+      transform: scaleY(0);
+      transform-origin: top;
+    }
+    45% {
+      transform: scaleY(1);
+      transform-origin: top;
+    }
+    55% {
+      transform: scaleY(1);
+      transform-origin: bottom;
+    }
+    100% {
+      transform: scaleY(0);
+      transform-origin: bottom;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes lightbox-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+    }
+  }
+  @keyframes price-flip {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes ticket-in {
+    from {
+      opacity: 0;
+      transform: translateY(28px) rotate(0.4deg);
+    }
+  }
+}
+
+/* ---------- Base: the few globals utilities can't express ------------------- */
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply overflow-x-hidden bg-bg font-body text-base leading-[1.9] text-ink px-[clamp(1.5rem,6vw,6rem)];
+  }
+
+  /* Film-grain overlay — an SVG turbulence texture at very low opacity. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    @apply bg-accent text-ink;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display leading-[1.35];
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  @media print {
+    body {
+      background: #fff;
+    }
+    body::after {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ---------- Components: only genuinely reused primitives ---------------------
+   Everything else lives as utility classes directly in the components. */
+
+@layer components {
+  .container {
+    @apply mx-auto w-full max-w-[76rem];
+  }
+
+  .section {
+    @apply relative scroll-mt-20 py-[clamp(4.5rem,10vw,8.5rem)];
+  }
+
+  .section-kicker {
+    @apply mb-3 text-[0.8rem] tracking-[0.35em] text-gold;
+  }
+
+  .section-title {
+    @apply mb-[clamp(1.5rem,4vw,3rem)] text-[clamp(1.9rem,4.5vw,3.2rem)] font-extrabold;
+  }
+
+  .section-lead {
+    @apply -mt-3 mb-10 max-w-[46ch] text-ink-muted;
+  }
+
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 border border-transparent px-[1.8rem] py-[0.85rem] font-body text-[0.95rem] font-medium leading-none transition-[background-color,color,border-color,transform] duration-300 ease-theater active:translate-y-px disabled:cursor-wait disabled:opacity-55;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-ink hover:bg-accent-hover;
+  }
+
+  .btn-ghost {
+    @apply border-line-strong bg-transparent text-ink hover:border-gold hover:text-gold;
+  }
+
+  .btn-sm {
+    @apply px-[1.15rem] py-[0.55rem] text-[0.85rem];
+  }
+
+  .btn-lg {
+    @apply px-[2.4rem] py-[1.05rem] text-[1.05rem];
+  }
+}
