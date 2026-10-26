@@ -151,7 +151,7 @@
 
 @layer components {
   .container {
-    @apply mx-auto w-full max-w-[76rem];
+    @apply mx-auto w-full max-w-[76rem] px-4;
   }
 
   .section {
