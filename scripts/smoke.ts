@@ -50,7 +50,7 @@ const empty = validateBooking({
   quantity: 0,
   performanceId: '',
   showtimeId: '',
-  isStudent: false,
+  studentCode: '',
 });
 check('empty form: firstName error', Boolean(empty.errors.firstName));
 check('empty form: lastName error', Boolean(empty.errors.lastName));
@@ -67,7 +67,7 @@ const overCap = validateBooking({
   quantity: pricing.maxTicketsPerOrder + 1,
   performanceId: performances[0].id,
   showtimeId: performances[0].showtimes[0].id,
-  isStudent: false,
+  studentCode: '',
 });
 check('over-cap quantity rejected', Boolean(overCap.errors.quantity));
 
@@ -79,7 +79,7 @@ const fakeDate = validateBooking({
   quantity: 1,
   performanceId: 'perf-1999-01-01',
   showtimeId: 'evening',
-  isStudent: true,
+  studentCode: '12345',
 });
 check('unscheduled date rejected', Boolean(fakeDate.errors.performanceId));
 
@@ -92,15 +92,53 @@ const valid = validateBooking({
   quantity: 2,
   performanceId: perf.id,
   showtimeId: perf.showtimes[1].id,
-  isStudent: true,
+  studentCode: ' ۱۲۳۴۵ ',
 });
 check('valid form passes', Boolean(valid.request));
 check('names trimmed', valid.request?.firstName === 'آزما' && valid.request?.lastName === 'آزمایشی');
 check('phone normalized in request', valid.request?.phone === '09123456789');
+check('valid request is student', valid.request?.isStudent === true);
 check(
   'expectedTotal uses student price',
   valid.request?.expectedTotal === 2 * pricing.studentTicketPrice,
 );
+
+// Student code → student rate + normalization
+const student = validateBooking({
+  firstName: 'آزما',
+  lastName: 'آزمایشی',
+  phone: '09123456789',
+  quantity: 1,
+  performanceId: perf.id,
+  showtimeId: perf.showtimes[0].id,
+  studentCode: ' ۱۲۳۴۵ ',
+});
+check('student code applies student rate', student.request?.isStudent === true);
+check('student code normalized', student.request?.studentCode === '12345');
+check('student total uses student price', student.request?.expectedTotal === pricing.studentTicketPrice);
+
+const badStudent = validateBooking({
+  firstName: 'آزما',
+  lastName: 'آزمایشی',
+  phone: '09123456789',
+  quantity: 1,
+  performanceId: perf.id,
+  showtimeId: perf.showtimes[0].id,
+  studentCode: 'ab',
+});
+check('invalid student code rejected', Boolean(badStudent.errors.studentCode));
+
+const regular = validateBooking({
+  firstName: 'آزما',
+  lastName: 'آزمایشی',
+  phone: '09123456789',
+  quantity: 2,
+  performanceId: perf.id,
+  showtimeId: perf.showtimes[0].id,
+  studentCode: '',
+});
+check('empty student code is regular', regular.request?.isStudent === false);
+check('regular total uses regular price', regular.request?.expectedTotal === 2 * pricing.regularTicketPrice);
 
 // Formatting
 check('currency formatting', formatCurrency(350000, 'تومان') === '۳۵۰٬۰۰۰ تومان');

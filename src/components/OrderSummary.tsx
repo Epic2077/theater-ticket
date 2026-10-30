@@ -15,8 +15,9 @@ interface OrderSummaryProps {
 
 export function OrderSummary({ form, performance }: OrderSummaryProps) {
   const showtime = performance?.showtimes.find((s) => s.id === form.showtimeId);
-  const unit = unitPrice(form.isStudent);
-  const total = totalPrice(form.quantity, form.isStudent);
+  const isStudent = form.studentCode.trim().length > 0;
+  const unit = unitPrice(isStudent);
+  const total = totalPrice(form.quantity, isStudent);
 
   const rows = [
     { label: 'نمایش', value: theater.productionTitle },
@@ -31,7 +32,7 @@ export function OrderSummary({ form, performance }: OrderSummaryProps) {
         : '—',
     },
     { label: 'تعداد بلیت', value: `${toPersianDigits(form.quantity)} عدد` },
-    { label: 'نوع بلیت', value: form.isStudent ? 'دانشجویی' : 'عادی' },
+    { label: 'نوع بلیت', value: isStudent ? 'دانشجویی' : 'عادی' },
     { label: 'قیمت واحد', value: formatCurrency(unit, pricing.currency) },
   ];
 

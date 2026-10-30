@@ -32,6 +32,8 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
   const selectedPerformance =
     performances.find((p) => p.id === form.performanceId) ?? performances[0];
 
+  const isStudent = form.studentCode.trim().length > 0;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const { errors: nextErrors, request } = validateBooking(form);
@@ -252,38 +254,33 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
         </fieldset>
       </div>
 
-      <label className="flex cursor-pointer items-center justify-between gap-4 border border-line-strong bg-surface px-4 py-[0.9rem]">
-        <span className="min-w-0">
-          <span className="block text-[0.92rem] font-medium text-ink">
-            بلیت دانشجویی
-          </span>
-          <span className="block text-[0.78rem] text-ink-muted">
-            با ارائهٔ کارت دانشجویی معتبر در ورودی سالن
-          </span>
-        </span>
+      <div className="flex min-w-0 flex-col gap-[0.45rem]">
+        <label htmlFor="studentCode" className={labelClass}>
+          کد دانشجویی <span className="text-ink-muted">(اختیاری)</span>
+        </label>
         <input
-          type="checkbox"
-          checked={form.isStudent}
-          onChange={(e) => onChange({ isStudent: e.target.checked })}
-          className="sr-only"
+          id="studentCode"
+          type="text"
+          dir="ltr"
+          inputMode="text"
+          autoComplete="off"
+          placeholder="کد دانشجویی"
+          value={form.studentCode}
+          onChange={(e) => onChange({ studentCode: e.target.value })}
+          aria-invalid={Boolean(errors.studentCode)}
+          aria-describedby={errors.studentCode ? 'studentCode-error' : 'studentCode-hint'}
+          className={`${inputClass} text-left`}
         />
-        <span
-          aria-hidden="true"
-          className={`relative h-[1.5rem] w-[2.8rem] shrink-0 border transition-[background-color,border-color] duration-[250ms] ease-theater ${
-            form.isStudent
-              ? 'border-accent bg-accent'
-              : 'border-line-strong bg-surface-2'
-          }`}
-        >
-          <span
-            className={`absolute top-[0.2rem] size-[1rem] transition-[inset-inline-start,background-color] duration-[250ms] ease-theater ${
-              form.isStudent
-                ? 'start-[1.4rem] bg-ink'
-                : 'start-[0.2rem] bg-ink-muted'
-            }`}
-          />
-        </span>
-      </label>
+        {errors.studentCode ? (
+          <p id="studentCode-error" className="text-[0.8rem] text-error">
+            {errors.studentCode}
+          </p>
+        ) : (
+          <p id="studentCode-hint" className="text-[0.76rem] text-ink-muted">
+            با وارد کردن کد دانشجویی معتبر، بلیت با نرخ دانشجویی صادر می‌شود.
+          </p>
+        )}
+      </div>
 
       <button
         type="submit"
@@ -291,9 +288,9 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
         className="btn btn-primary btn-lg w-full"
       >
         {submitting
-          ? 'در حال ثبت...'
-          : `رزرو بلیت · ${formatCurrency(
-              totalPrice(form.quantity, form.isStudent),
+          ? 'در حال اتصال به درگاه...'
+          : `پرداخت و رزرو بلیت · ${formatCurrency(
+              totalPrice(form.quantity, isStudent),
               pricing.currency,
             )}`}
       </button>

@@ -1,4 +1,10 @@
-import type { BookingErrors, BookingFormValues, BookingRequest, Performance } from '../types';
+import type {
+  BookingErrors,
+  BookingFormValues,
+  BookingRequest,
+  Performance,
+  Showtime,
+} from '../types';
 import { pricing, totalPrice } from '../config/pricing';
 import { findPerformance, findShowtime } from '../data/performances';
 import { normalizeIranianMobile } from './phone';
@@ -13,6 +19,17 @@ function isPastDate(dateISO: string): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return new Date(`${dateISO}T00:00:00`) < today;
+}
+
+/** Accepts letters/digits (incl. Persian/Arabic digits) after normalization. */
+const STUDENT_CODE_PATTERN = /^[A-Za-z0-9]{4,30}$/;
+
+function normalizeStudentCode(raw: string): string {
+  return raw
+    .trim()
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[\s-]/g, '');
 }
 
 /** Centralized client-side validation. The server MUST re-validate everything. */
@@ -37,6 +54,12 @@ export function validateBooking(values: BookingFormValues): ValidationResult {
     errors.quantity = `حداکثر ${pricing.maxTicketsPerOrder} بلیت در هر سفارش مجاز است.`;
   }
 
+  const studentCode = normalizeStudentCode(values.studentCode);
+  const isStudent = studentCode.length > 0;
+  if (isStudent && !STUDENT_CODE_PATTERN.test(studentCode)) {
+    errors.studentCode = 'کد دانشجویی نامعتبر است.';
+  }
+
   let performance: Performance | undefined;
   if (!values.performanceId) {
     errors.performanceId = 'لطفاً تاریخ اجرا را انتخاب کنید.';
@@ -47,11 +70,15 @@ export function validateBooking(values: BookingFormValues): ValidationResult {
     }
   }
 
+  let showtime: Showtime | undefined;
   if (performance && !errors.performanceId) {
     if (!values.showtimeId) {
       errors.showtimeId = 'لطفاً سانس موردنظر را انتخاب کنید.';
-    } else if (!findShowtime(performance, values.showtimeId)) {
-      errors.showtimeId = 'سانس انتخاب‌شده برای این تاریخ موجود نیست.';
+    } else {
+      showtime = findShowtime(performance, values.showtimeId);
+      if (!showtime) {
+        errors.showtimeId = 'سانس انتخاب‌شده برای این تاریخ موجود نیست.';
+      }
     }
   }
 
@@ -66,8 +93,11 @@ export function validateBooking(values: BookingFormValues): ValidationResult {
       quantity: values.quantity,
       performanceId: values.performanceId,
       showtimeId: values.showtimeId,
-      isStudent: values.isStudent,
-      expectedTotal: totalPrice(values.quantity, values.isStudent),
+      performanceDateISO: performance.dateISO,
+      showtimeTime: showtime?.time ?? '',
+      studentCode: isStudent ? studentCode : '',
+      isStudent,
+      expectedTotal: totalPrice(values.quantity, isStudent),
     },
   };
 }

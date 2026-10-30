@@ -15,7 +15,7 @@ const DEFAULT_FORM: BookingFormValues = {
   quantity: 2,
   performanceId: performances[0]?.id ?? '',
   showtimeId: performances[0]?.showtimes[0]?.id ?? '',
-  isStudent: false,
+  studentCode: '',
 };
 
 export function BookingSection() {
@@ -31,6 +31,7 @@ export function BookingSection() {
   const performance =
     performances.find((p) => p.id === form.performanceId) ?? performances[0];
   const showtime = performance?.showtimes.find((s) => s.id === form.showtimeId);
+  const isStudent = form.studentCode.trim().length > 0;
 
   useEffect(() => {
     if (result && ticketRef.current) {
@@ -45,11 +46,11 @@ export function BookingSection() {
         statusNote: result.statusNote,
         buyerFullName: `${form.firstName} ${form.lastName}`.trim(),
         quantity: form.quantity,
-        isStudent: form.isStudent,
+        isStudent,
         performanceDateISO: performance?.dateISO ?? '',
         showtime: showtime?.time ?? '',
-        unitPrice: unitPrice(form.isStudent),
-        totalPrice: totalPrice(form.quantity, form.isStudent),
+        unitPrice: unitPrice(isStudent),
+        totalPrice: totalPrice(form.quantity, isStudent),
         issuedAtISO: new Date().toISOString(),
       }
     : null;
@@ -67,8 +68,8 @@ export function BookingSection() {
             صندلی خود را انتخاب کنید
           </h2>
           <p className="section-lead">
-            پس از تکمیل فرم، بلیت شما بلافاصله با کد رهگیری و QR صادر می‌شود و
-            می‌توانید همان لحظه آن را چاپ یا ذخیره کنید.
+            پس از تکمیل فرم به درگاه پرداخت امن زرین‌پال منتقل می‌شوید و بلیت شما
+            بلافاصله پس از پرداخت با کد رهگیری و QR صادر می‌شود.
           </p>
         </Reveal>
 
@@ -79,7 +80,12 @@ export function BookingSection() {
                 form={form}
                 onChange={update}
                 onSubmit={async (request) => {
-                  setResult(await submitBooking(request));
+                  const res = await submitBooking(request);
+                  if (res.status === 'pending_payment' && res.paymentUrl) {
+                    window.location.href = res.paymentUrl;
+                    return;
+                  }
+                  setResult(res);
                 }}
               />
             </Reveal>

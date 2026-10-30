@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { AboutSection } from './components/AboutSection';
@@ -6,8 +7,25 @@ import { CastSection } from './components/CastSection';
 import { BookingSection } from './components/BookingSection';
 import { Footer } from './components/Footer';
 import { CustomCursor } from './components/CustomCursor';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { PaymentCallback } from './pages/PaymentCallback';
+
+/** Tiny hash router: "#/admin" shows the admin dashboard, anything else the site. */
+function useHashRoute(): string {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return hash;
+}
 
 export default function App() {
+  const hash = useHashRoute();
+  if (hash.startsWith('#/admin')) return <AdminDashboard />;
+  if (hash.startsWith('#/payment/callback')) return <PaymentCallback />;
+
   return (
     <>
       <a

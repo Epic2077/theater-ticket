@@ -106,6 +106,12 @@ export function Footer() {
           <p className="m-0 text-[0.78rem] text-ink-muted">
             © {year} {theater.groupName} — تمامی حقوق محفوظ است.
           </p>
+          <a
+            href="#/admin"
+            className="text-[0.78rem] text-ink-muted transition-colors duration-[250ms] hover:text-gold"
+          >
+            ورود مدیر
+          </a>
         </div>
       </div>
     </footer>
