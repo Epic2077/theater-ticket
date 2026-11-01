@@ -8,8 +8,8 @@ import type { AttendeeRow, BookingRequest, BookingResult } from '../types';
  *
  * When Supabase is configured, a booking is INSERTed as `paid` with the full
  * attendee list. The server recomputes `quantity` and `total_price` from the
- * attendees (regular 125000 / student 85000 / free 0). If a receipt screenshot
- * was provided it is uploaded to Supabase Storage, but it is optional.
+ * attendees (regular 125000 / student 85000 / free 0). A receipt screenshot
+ * is uploaded before the booking is inserted and stored with the booking.
  *
  * Without configuration the service falls back to DEMO MODE.
  */
@@ -45,6 +45,13 @@ export async function submitBooking(
   request: BookingRequest,
   receiptFile: File | null,
 ): Promise<BookingResult> {
+  if (!receiptFile) {
+    throw new Error('تصویر رسید الزامی است.');
+  }
+  if (!receiptFile.type.startsWith('image/')) {
+    throw new Error('فایل رسید باید یک تصویر باشد.');
+  }
+
   if (!isSupabaseConfigured || !supabase) {
     await delay(1200);
     return {
@@ -77,25 +84,23 @@ export async function submitBooking(
 
   for (let attempt = 1; attempt <= MAX_REFERENCE_ATTEMPTS; attempt++) {
     const reference = generateReference();
+    const receiptPath = `${reference}${fileExtension(receiptFile.name)}`;
+    const { error: uploadError } = await supabase.storage
+      .from(RECEIPTS_BUCKET)
+      .upload(receiptPath, receiptFile, {
+        contentType: receiptFile.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error('بارگذاری تصویر رسید ناموفق بود. لطفاً دوباره تلاش کنید.');
+    }
+
     const { error } = await supabase
       .from('bookings')
-      .insert({ reference, ...row });
+      .insert({ reference, ...row, receipt_path: receiptPath });
 
     if (!error) {
-      if (receiptFile) {
-        const path = `${reference}${fileExtension(receiptFile.name)}`;
-        await supabase.storage
-          .from(RECEIPTS_BUCKET)
-          .upload(path, receiptFile, {
-            contentType: receiptFile.type || 'image/jpeg',
-            upsert: false,
-          });
-        await supabase
-          .from('bookings')
-          .update({ receipt_path: path })
-          .eq('reference', reference);
-      }
-
       return {
         reference,
         status: 'confirmed',
@@ -111,4 +116,3 @@ export async function submitBooking(
 
   throw new Error('ثبت سفارش ناموفق بود. لطفاً دوباره تلاش کنید.');
 }
-

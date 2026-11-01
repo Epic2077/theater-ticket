@@ -25,7 +25,10 @@ function isPastDate(dateISO: string): boolean {
 }
 
 /** Centralized client-side validation. The server re-validates everything. */
-export function validateBooking(values: BookingFormValues): ValidationResult {
+export function validateBooking(
+  values: BookingFormValues,
+  receiptFile: File | null = null,
+): ValidationResult {
   const errors: BookingErrors = {};
 
   const phone = normalizeIranianMobile(values.phone);
@@ -61,6 +64,12 @@ export function validateBooking(values: BookingFormValues): ValidationResult {
         errors.showtimeId = 'سانس انتخاب‌شده برای این تاریخ موجود نیست.';
       }
     }
+  }
+
+  if (!receiptFile) {
+    errors.receipt = 'بارگذاری تصویر رسید الزامی است.';
+  } else if (!receiptFile.type.startsWith('image/')) {
+    errors.receipt = 'فایل رسید باید یک تصویر باشد.';
   }
 
   // Attendees — one entry per ticket.

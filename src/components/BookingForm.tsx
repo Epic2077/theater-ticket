@@ -72,7 +72,7 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const { errors: nextErrors, request } = validateBooking(form);
+    const { errors: nextErrors, request } = validateBooking(form, receiptFile);
     setErrors(nextErrors);
     if (!request) return;
     setSubmitting(true);
@@ -378,13 +378,19 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
           id="receipt"
           type="file"
           accept="image/*"
+          required
           onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+          aria-invalid={Boolean(errors.receipt)}
           className="cursor-pointer border border-line-strong bg-surface px-4 py-[0.8rem] text-[0.9rem] text-ink file:me-3 file:cursor-pointer file:border-0 file:bg-accent file:px-4 file:py-2 file:text-[0.82rem] file:text-ink"
         />
-        <p className="text-[0.76rem] text-ink-muted">
-          مبلغ را کارت به کارت واریز کنید و تصویر رسید (اسکرین‌شات) را اینجا
-          بارگذاری کنید.
-        </p>
+        {errors.receipt ? (
+          <p className="text-[0.8rem] text-error">{errors.receipt}</p>
+        ) : (
+          <p className="text-[0.76rem] text-ink-muted">
+            مبلغ را کارت به کارت واریز کنید و تصویر رسید (اسکرین‌شات) را اینجا
+            بارگذاری کنید.
+          </p>
+        )}
       </div>
 
       <button

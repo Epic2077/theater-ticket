@@ -114,5 +114,6 @@ export interface BookingErrors {
   quantity?: string;
   performanceId?: string;
   showtimeId?: string;
+  receipt?: string;
   attendees?: AttendeeErrors[];
 }
