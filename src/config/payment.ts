@@ -5,9 +5,9 @@
  */
 export const payment = {
   /** The card number buyers transfer the ticket price to. */
-  cardNumber: '6037-9973-0000-0000',
+  cardNumber: "5892101555963715 / 6219861990107681 ",
   /** Cardholder name shown to buyers. */
-  cardHolder: 'نام دارنده کارت',
+  cardHolder: "مسعود زستاخیز",
   /** Optional bank name; leave empty to hide. */
-  bankName: '',
+  bankName: "",
 } as const;

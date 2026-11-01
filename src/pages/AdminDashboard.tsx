@@ -4,7 +4,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { pricing } from '../config/pricing';
 import { theater } from '../config/theater';
 import { rateLabel } from '../utils/studentCode';
-import type { BookingRecord } from '../types';
+import type { BookingRecord, TicketRate } from '../types';
 import {
   formatCurrency,
   formatPerformanceDate,
@@ -44,6 +44,16 @@ function bookingSearchText(booking: BookingRecord): string {
 
 type DashboardBooking = BookingRecord & { receipt_url?: string };
 
+type CheckinRow = {
+  key: string;
+  firstName: string;
+  lastName: string;
+  reference: string;
+  rate: TicketRate;
+  studentCode: string;
+  phone: string;
+};
+
 export function AdminDashboard() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
@@ -51,6 +61,7 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [nightFilter, setNightFilter] = useState('all');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -152,11 +163,41 @@ export function AdminDashboard() {
     await loadBookings();
   };
 
+  const nights = useMemo(() => {
+    const set = new Set(bookings.map((b) => b.performance_date));
+    return Array.from(set).sort();
+  }, [bookings]);
+
+  const nightLabel =
+    nightFilter === 'all' ? 'همهٔ شب‌ها' : formatPerformanceDate(nightFilter);
+
   const filtered = useMemo(() => {
+    const base =
+      nightFilter === 'all'
+        ? bookings
+        : bookings.filter((b) => b.performance_date === nightFilter);
     const query = normalizeSearch(search);
-    if (!query) return bookings;
-    return bookings.filter((b) => bookingSearchText(b).includes(query));
-  }, [bookings, search]);
+    if (!query) return base;
+    return base.filter((b) => bookingSearchText(b).includes(query));
+  }, [bookings, search, nightFilter]);
+
+  const checkinRows = useMemo(() => {
+    const rows: CheckinRow[] = [];
+    for (const b of filtered) {
+      for (const a of b.attendees ?? []) {
+        rows.push({
+          key: `${b.id}-${a.firstName}-${a.lastName}-${a.studentCode}`,
+          firstName: a.firstName,
+          lastName: a.lastName,
+          reference: b.reference,
+          rate: a.rate,
+          studentCode: a.studentCode,
+          phone: b.phone,
+        });
+      }
+    }
+    return rows;
+  }, [filtered]);
 
   const paid = bookings.filter((b) => b.status === 'paid');
   const pendingCount = bookings.filter((b) => b.status === 'pending').length;
@@ -286,8 +327,9 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="container py-10">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-6">
+    <div className="container py-10 print:py-0">
+      <div className="print:hidden">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-6">
         <div>
           <p className="m-0 text-[0.8rem] tracking-[0.3em] text-gold">داشبورد مدیریت</p>
           <h1 className="m-0 mt-1 text-2xl font-extrabold">بلیت‌های فروخته‌شده</h1>
@@ -360,19 +402,39 @@ export function AdminDashboard() {
         )}
       </section>
 
-      <div className="mt-8 flex max-w-xl flex-col gap-[0.45rem]">
-        <label htmlFor="search" className="text-[0.88rem] font-medium">
-          جستجو
-        </label>
-        <input
-          id="search"
-          type="search"
-          dir="rtl"
-          placeholder="نام، نام خانوادگی، کد بلیت، موبایل یا کد دانشجویی…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={inputClass}
-        />
+      <div className="mt-8 grid grid-cols-1 gap-[1.2rem] sm:grid-cols-2">
+        <div className="flex flex-col gap-[0.45rem]">
+          <label htmlFor="night" className="text-[0.88rem] font-medium">
+            شب اجرا
+          </label>
+          <select
+            id="night"
+            value={nightFilter}
+            onChange={(e) => setNightFilter(e.target.value)}
+            className="min-h-[3.2rem] w-full cursor-pointer border border-line-strong bg-surface px-4 py-[0.8rem] font-body text-base text-ink transition-[border-color] duration-[250ms] hover:border-ink-muted focus:border-gold focus:outline-none"
+          >
+            <option value="all">همهٔ شب‌ها</option>
+            {nights.map((d) => (
+              <option key={d} value={d}>
+                {formatPerformanceDate(d)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-[0.45rem]">
+          <label htmlFor="search" className="text-[0.88rem] font-medium">
+            جستجو
+          </label>
+          <input
+            id="search"
+            type="search"
+            dir="rtl"
+            placeholder="نام، نام خانوادگی، کد بلیت، موبایل یا کد دانشجویی…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={inputClass}
+          />
+        </div>
       </div>
 
       {error && (
@@ -494,6 +556,13 @@ export function AdminDashboard() {
           </table>
         )}
       </div>
+      </div>
+
+      <CheckinList
+        rows={checkinRows}
+        nightLabel={nightLabel}
+        onPrint={() => window.print()}
+      />
     </div>
   );
 }
@@ -504,5 +573,73 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="m-0 text-[0.78rem] text-ink-muted">{label}</p>
       <p className="m-0 mt-1 font-display text-[1.3rem] font-bold text-gold">{value}</p>
     </div>
+  );
+}
+
+function CheckinList({
+  rows,
+  nightLabel,
+  onPrint,
+}: {
+  rows: CheckinRow[];
+  nightLabel: string;
+  onPrint: () => void;
+}) {
+  return (
+    <section className="mt-12 print:mt-0" aria-labelledby="checkin-title">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-y border-line py-4 print:hidden">
+        <div>
+          <h2 id="checkin-title" className="m-0 text-[1.15rem] font-bold">
+            لیست حضور
+          </h2>
+          <p className="m-0 mt-1 text-[0.85rem] text-ink-muted">{nightLabel}</p>
+        </div>
+        <button type="button" onClick={onPrint} className="btn btn-primary">
+          چاپ / ذخیره PDF
+        </button>
+      </div>
+
+      <div className="hidden print:block print:text-black">
+        <h1 className="m-0 text-xl font-bold">لیست حضور — {nightLabel}</h1>
+        <p className="m-0 mt-1 text-sm">تعداد: {toPersianDigits(rows.length)} نفر</p>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="mt-4 text-ink-muted print:hidden">بلیتی برای این شب ثبت نشده است.</p>
+      ) : (
+        <table className="mt-4 w-full border-collapse text-[0.85rem]">
+          <thead>
+            <tr className="text-ink-muted print:text-black">
+              <th className="border border-line px-3 py-2 text-start print:border-black">ردیف</th>
+              <th className="border border-line px-3 py-2 text-start print:border-black">نام</th>
+              <th className="border border-line px-3 py-2 text-start print:border-black">نام خانوادگی</th>
+              <th className="border border-line px-3 py-2 text-start print:border-black">کد بلیت</th>
+              <th className="border border-line px-3 py-2 text-start print:border-black">نوع</th>
+              <th className="border border-line px-3 py-2 text-start print:border-black">کد دانشجویی</th>
+              <th className="border border-line px-3 py-2 text-start print:border-black">حضور</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.key} className="print:text-black">
+                <td className="border border-line px-3 py-2 print:border-black">
+                  {toPersianDigits(i + 1)}
+                </td>
+                <td className="border border-line px-3 py-2 print:border-black">{r.firstName}</td>
+                <td className="border border-line px-3 py-2 print:border-black">{r.lastName}</td>
+                <td className="border border-line px-3 py-2 font-mono print:border-black" dir="ltr">
+                  {r.reference}
+                </td>
+                <td className="border border-line px-3 py-2 print:border-black">{rateLabel(r.rate)}</td>
+                <td className="border border-line px-3 py-2 print:border-black" dir="ltr">
+                  {r.studentCode || '—'}
+                </td>
+                <td className="border border-line px-3 py-2 print:border-black">☐</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
