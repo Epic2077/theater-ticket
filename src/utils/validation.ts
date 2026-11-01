@@ -11,6 +11,7 @@ import { pricing, unitPrice } from '../config/pricing';
 import { findPerformance, findShowtime } from '../data/performances';
 import { normalizeIranianMobile } from './phone';
 import { classifyStudentCode, normalizeStudentCode } from './studentCode';
+import { receiptFileError } from '../config/receipts';
 
 export interface ValidationResult {
   errors: BookingErrors;
@@ -66,11 +67,8 @@ export function validateBooking(
     }
   }
 
-  if (!receiptFile) {
-    errors.receipt = 'بارگذاری تصویر رسید الزامی است.';
-  } else if (!receiptFile.type.startsWith('image/')) {
-    errors.receipt = 'فایل رسید باید یک تصویر باشد.';
-  }
+  const receiptError = receiptFileError(receiptFile);
+  if (receiptError) errors.receipt = receiptError;
 
   // Attendees — one entry per ticket.
   const attendees: Attendee[] = [];

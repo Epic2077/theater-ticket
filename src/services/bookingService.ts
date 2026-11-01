@@ -1,6 +1,7 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { unitPrice } from '../config/pricing';
 import { classifyStudentCode } from '../utils/studentCode';
+import { receiptFileError, receiptFileExtension } from '../config/receipts';
 import type { AttendeeRow, BookingRequest, BookingResult } from '../types';
 
 /**
@@ -36,21 +37,13 @@ function generateDemoReference(): string {
   return `DEMO-${suffix}`;
 }
 
-function fileExtension(name: string): string {
-  const index = name.lastIndexOf('.');
-  return index >= 0 ? name.slice(index).toLowerCase() : '.jpg';
-}
-
 export async function submitBooking(
   request: BookingRequest,
   receiptFile: File | null,
 ): Promise<BookingResult> {
-  if (!receiptFile) {
-    throw new Error('تصویر رسید الزامی است.');
-  }
-  if (!receiptFile.type.startsWith('image/')) {
-    throw new Error('فایل رسید باید یک تصویر باشد.');
-  }
+  const receiptError = receiptFileError(receiptFile);
+  if (receiptError) throw new Error(receiptError);
+  if (!receiptFile) throw new Error('تصویر رسید الزامی است.');
 
   if (!isSupabaseConfigured || !supabase) {
     await delay(1200);
@@ -79,12 +72,12 @@ export async function submitBooking(
     total_price: request.expectedTotal,
     attendees,
     status: 'paid',
-    status_note: 'پرداخت ثبت شد — بلیت صادر شد.',
+    status_note: 'رسید ثبت شد — بلیت صادر شد.',
   };
 
   for (let attempt = 1; attempt <= MAX_REFERENCE_ATTEMPTS; attempt++) {
     const reference = generateReference();
-    const receiptPath = `${reference}${fileExtension(receiptFile.name)}`;
+    const receiptPath = `${reference}${receiptFileExtension(receiptFile)}`;
     const { error: uploadError } = await supabase.storage
       .from(RECEIPTS_BUCKET)
       .upload(receiptPath, receiptFile, {
@@ -93,7 +86,15 @@ export async function submitBooking(
       });
 
     if (uploadError) {
-      throw new Error('بارگذاری تصویر رسید ناموفق بود. لطفاً دوباره تلاش کنید.');
+      if (
+        uploadError.message.toLowerCase().includes('size') ||
+        uploadError.message.toLowerCase().includes('payload')
+      ) {
+        throw new Error('حجم تصویر رسید بیش از حد مجاز است.');
+      }
+      throw new Error(
+        'بارگذاری تصویر رسید ناموفق بود. لطفاً دوباره تلاش کنید؛ اگر دوباره تکرار شد، با پشتیبانی به شمارهٔ ۰۹۳۳۸۴۸۴۷۹۶ تماس بگیرید.',
+      );
     }
 
     const { error } = await supabase
@@ -104,9 +105,11 @@ export async function submitBooking(
       return {
         reference,
         status: 'confirmed',
-        statusNote: 'پرداخت ثبت شد؛ بلیت شما صادر شد.',
+        statusNote: 'رسید ثبت شد؛ بلیت شما صادر شد.',
       };
     }
+
+    await supabase.storage.from(RECEIPTS_BUCKET).remove([receiptPath]);
 
     // Unique-constraint collision on the random ticket code — retry with a fresh one.
     if (error.code !== UNIQUE_VIOLATION) {
