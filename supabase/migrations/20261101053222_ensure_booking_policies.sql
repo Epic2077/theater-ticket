@@ -20,4 +20,3 @@ create policy "bookings_admin_select"
 grant usage on schema public to anon, authenticated;
 grant insert on table public.bookings to anon;
 grant select, update on table public.bookings to authenticated;
-
