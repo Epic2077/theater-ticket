@@ -1,36 +1,43 @@
-import { useState, type FormEvent } from 'react';
-import { performances } from '../data/performances';
-import { pricing, unitPrice } from '../config/pricing';
+import { useState, type FormEvent } from "react";
+import { performances } from "../data/performances";
+import { pricing, unitPrice } from "../config/pricing";
 import type {
   Attendee,
   BookingErrors,
   BookingFormValues,
   BookingRequest,
-} from '../types';
-import { validateBooking } from '../utils/validation';
-import { classifyStudentCode } from '../utils/studentCode';
+} from "../types";
+import { validateBooking } from "../utils/validation";
+import { classifyStudentCode } from "../utils/studentCode";
 import {
   formatCurrency,
   formatPerformanceDate,
   formatTime,
   toPersianDigits,
-} from '../utils/format';
+} from "../utils/format";
 
 interface BookingFormProps {
   form: BookingFormValues;
   onChange: (patch: Partial<BookingFormValues>) => void;
-  onSubmit: (request: BookingRequest, receiptFile: File | null) => Promise<void>;
+  onSubmit: (
+    request: BookingRequest,
+    receiptFile: File | null,
+  ) => Promise<void>;
 }
 
 const inputClass =
-  'min-h-[3.2rem] w-full appearance-none rounded-none border border-line-strong bg-surface px-4 py-[0.8rem] font-body text-base text-ink transition-[border-color,background-color] duration-[250ms] ease-theater hover:border-ink-muted focus:border-gold focus:bg-surface-2 focus:outline-none aria-invalid:border-accent!';
+  "min-h-[3.2rem] w-full appearance-none rounded-none border border-line-strong bg-surface px-4 py-[0.8rem] font-body text-base text-ink transition-[border-color,background-color] duration-[250ms] ease-theater hover:border-ink-muted focus:border-gold focus:bg-surface-2 focus:outline-none aria-invalid:border-accent!";
 
 const selectArrowClass =
-  'cursor-pointer bg-[linear-gradient(45deg,transparent_50%,var(--color-ink-muted)_50%),linear-gradient(135deg,var(--color-ink-muted)_50%,transparent_50%)] bg-no-repeat pe-[2.4rem] [background-position:calc(0%_+_1.4rem)_55%,calc(0%_+_1.05rem)_55%] [background-size:6px_6px,6px_6px]';
+  "cursor-pointer bg-[linear-gradient(45deg,transparent_50%,var(--color-ink-muted)_50%),linear-gradient(135deg,var(--color-ink-muted)_50%,transparent_50%)] bg-no-repeat pe-[2.4rem] [background-position:calc(0%_+_1.4rem)_55%,calc(0%_+_1.05rem)_55%] [background-size:6px_6px,6px_6px]";
 
-const labelClass = 'text-[0.88rem] font-medium text-ink';
+const labelClass = "text-[0.88rem] font-medium text-ink";
 
-const EMPTY_ATTENDEE: Attendee = { firstName: '', lastName: '', studentCode: '' };
+const EMPTY_ATTENDEE: Attendee = {
+  firstName: "",
+  lastName: "",
+  studentCode: "",
+};
 
 export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
   const [errors, setErrors] = useState<BookingErrors>({});
@@ -43,12 +50,15 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
   const buyer = form.attendees[0] ?? EMPTY_ATTENDEE;
 
   const total = form.attendees.reduce(
-    (sum, a) => sum + unitPrice(classifyStudentCode(a.studentCode) ?? 'regular'),
+    (sum, a) =>
+      sum + unitPrice(classifyStudentCode(a.studentCode) ?? "regular"),
     0,
   );
 
   const updateAttendee = (index: number, patch: Partial<Attendee>) => {
-    const attendees = form.attendees.map((a, i) => (i === index ? { ...a, ...patch } : a));
+    const attendees = form.attendees.map((a, i) =>
+      i === index ? { ...a, ...patch } : a,
+    );
     onChange({ attendees });
   };
 
@@ -70,14 +80,18 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
     try {
       await onSubmit(request, receiptFile);
     } catch {
-      setSubmitError('خطایی رخ داد؛ لطفاً دوباره تلاش کنید.');
+      setSubmitError("خطایی رخ داد؛ لطفاً دوباره تلاش کنید.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form className="flex flex-col gap-[1.6rem]" onSubmit={handleSubmit} noValidate>
+    <form
+      className="flex flex-col gap-[1.6rem]"
+      onSubmit={handleSubmit}
+      noValidate
+    >
       {submitError && (
         <p
           role="alert"
@@ -101,7 +115,9 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
             className={inputClass}
           />
           {errors.attendees?.[0]?.firstName && (
-            <p className="text-[0.8rem] text-error">{errors.attendees[0].firstName}</p>
+            <p className="text-[0.8rem] text-error">
+              {errors.attendees[0].firstName}
+            </p>
           )}
         </div>
 
@@ -119,7 +135,9 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
             className={inputClass}
           />
           {errors.attendees?.[0]?.lastName && (
-            <p className="text-[0.8rem] text-error">{errors.attendees[0].lastName}</p>
+            <p className="text-[0.8rem] text-error">
+              {errors.attendees[0].lastName}
+            </p>
           )}
         </div>
       </div>
@@ -178,7 +196,9 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
               +
             </button>
           </div>
-          {errors.quantity && <p className="text-[0.8rem] text-error">{errors.quantity}</p>}
+          {errors.quantity && (
+            <p className="text-[0.8rem] text-error">{errors.quantity}</p>
+          )}
         </fieldset>
       </div>
 
@@ -199,7 +219,9 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
           className={`${inputClass} text-left`}
         />
         {errors.attendees?.[0]?.studentCode && (
-          <p className="text-[0.8rem] text-error">{errors.attendees[0].studentCode}</p>
+          <p className="text-[0.8rem] text-error">
+            {errors.attendees[0].studentCode}
+          </p>
         )}
       </div>
       {form.attendees.slice(1).map((att, idx) => {
@@ -222,11 +244,15 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
                   id={`att-name-${i}`}
                   type="text"
                   value={att.firstName}
-                  onChange={(e) => updateAttendee(i, { firstName: e.target.value })}
+                  onChange={(e) =>
+                    updateAttendee(i, { firstName: e.target.value })
+                  }
                   aria-invalid={Boolean(errs?.firstName)}
                   className={inputClass}
                 />
-                {errs?.firstName && <p className="text-[0.8rem] text-error">{errs.firstName}</p>}
+                {errs?.firstName && (
+                  <p className="text-[0.8rem] text-error">{errs.firstName}</p>
+                )}
               </div>
               <div className="flex min-w-0 flex-col gap-[0.45rem]">
                 <label htmlFor={`att-last-${i}`} className={labelClass}>
@@ -236,16 +262,20 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
                   id={`att-last-${i}`}
                   type="text"
                   value={att.lastName}
-                  onChange={(e) => updateAttendee(i, { lastName: e.target.value })}
+                  onChange={(e) =>
+                    updateAttendee(i, { lastName: e.target.value })
+                  }
                   aria-invalid={Boolean(errs?.lastName)}
                   className={inputClass}
                 />
-                {errs?.lastName && <p className="text-[0.8rem] text-error">{errs.lastName}</p>}
+                {errs?.lastName && (
+                  <p className="text-[0.8rem] text-error">{errs.lastName}</p>
+                )}
               </div>
             </div>
             <div className="flex min-w-0 flex-col gap-[0.45rem]">
               <label htmlFor={`att-code-${i}`} className={labelClass}>
-                کد دانشجویی <span className="text-ink-muted">(اختیاری)</span>
+                کد دانشجویی <span className="text-ink-muted">(اجباری)</span>
               </label>
               <input
                 id={`att-code-${i}`}
@@ -254,7 +284,9 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
                 inputMode="text"
                 autoComplete="off"
                 value={att.studentCode}
-                onChange={(e) => updateAttendee(i, { studentCode: e.target.value })}
+                onChange={(e) =>
+                  updateAttendee(i, { studentCode: e.target.value })
+                }
                 aria-invalid={Boolean(errs?.studentCode)}
                 className={`${inputClass} text-left`}
               />
@@ -277,14 +309,14 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
               const perf = performances.find((p) => p.id === e.target.value);
               onChange({
                 performanceId: e.target.value,
-                showtimeId: perf?.showtimes[0]?.id ?? '',
+                showtimeId: perf?.showtimes[0]?.id ?? "",
               });
             }}
             className={`${inputClass} ${selectArrowClass}`}
           >
             {performances.map((p) => (
               <option key={p.id} value={p.id}>
-                {formatPerformanceDate(p.dateISO, 'full')}
+                {formatPerformanceDate(p.dateISO, "full")}
               </option>
             ))}
           </select>
@@ -313,12 +345,12 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
                   <span
                     className={`inline-flex items-baseline gap-[0.6rem] border px-[1.3rem] py-[0.65rem] transition-[border-color,background-color] duration-[250ms] ease-theater peer-focus-visible:outline-2 peer-focus-visible:outline-offset-[3px] peer-focus-visible:outline-gold ${
                       selected
-                        ? 'border-accent bg-accent/15'
-                        : 'border-line-strong bg-surface hover:border-gold'
+                        ? "border-accent bg-accent/15"
+                        : "border-line-strong bg-surface hover:border-gold"
                     }`}
                   >
                     <span
-                      className={`font-display text-[1.05rem] font-bold ${selected ? 'text-gold' : ''}`}
+                      className={`font-display text-[1.05rem] font-bold ${selected ? "text-gold" : ""}`}
                     >
                       {formatTime(showtime.time)}
                     </span>
@@ -350,13 +382,18 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
           className="cursor-pointer border border-line-strong bg-surface px-4 py-[0.8rem] text-[0.9rem] text-ink file:me-3 file:cursor-pointer file:border-0 file:bg-accent file:px-4 file:py-2 file:text-[0.82rem] file:text-ink"
         />
         <p className="text-[0.76rem] text-ink-muted">
-          مبلغ را کارت به کارت واریز کنید و تصویر رسید (اسکرین‌شات) را اینجا بارگذاری کنید.
+          مبلغ را کارت به کارت واریز کنید و تصویر رسید (اسکرین‌شات) را اینجا
+          بارگذاری کنید.
         </p>
       </div>
 
-      <button type="submit" disabled={submitting} className="btn btn-primary btn-lg w-full">
+      <button
+        type="submit"
+        disabled={submitting}
+        className="btn btn-primary btn-lg w-full"
+      >
         {submitting
-          ? 'در حال ثبت...'
+          ? "در حال ثبت..."
           : `ثبت رزرو · ${formatCurrency(total, pricing.currency)}`}
       </button>
     </form>
