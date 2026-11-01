@@ -18,8 +18,6 @@ export interface CastMember {
   id: string;
   name: string;
   role: string;
-  /** Optional portrait path under /public, e.g. "/images/cast-1.jpg". */
-  image?: string;
 }
 
 export interface BookingFormValues {
@@ -53,15 +51,13 @@ export interface BookingRequest {
   expectedTotal: number;
 }
 
-export type BookingStatus = 'demo' | 'pending_payment' | 'confirmed' | 'failed';
+export type BookingStatus = 'demo' | 'pending' | 'confirmed' | 'failed';
 
 export interface BookingResult {
   reference: string;
   status: BookingStatus;
   /** Human-readable status note shown on the ticket (Persian). */
   statusNote: string;
-  /** Absolute Zarinpal payment URL — present only when status === 'pending_payment'. */
-  paymentUrl?: string;
 }
 
 /** Everything needed to render the generated ticket. */
@@ -98,22 +94,7 @@ export interface BookingRecord {
   status: string;
   status_note: string | null;
   created_at: string;
-  authority: string | null;
-  ref_id: string | null;
-  paid_at: string | null;
-}
-
-/** Safe subset of a paid booking returned by the verify edge function. */
-export interface PaidBooking {
-  reference: string;
-  first_name: string;
-  last_name: string;
-  quantity: number;
-  is_student: boolean;
-  performance_date: string;
-  showtime_time: string;
-  unit_price: number;
-  total_price: number;
+  receipt_path: string | null;
   paid_at: string | null;
 }
 

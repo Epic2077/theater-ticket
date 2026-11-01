@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { AboutSection } from './components/AboutSection';
-import { GallerySection } from './components/GallerySection';
 import { CastSection } from './components/CastSection';
 import { BookingSection } from './components/BookingSection';
 import { Footer } from './components/Footer';
 import { CustomCursor } from './components/CustomCursor';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { PaymentCallback } from './pages/PaymentCallback';
 
 /** Tiny hash router: "#/admin" shows the admin dashboard, anything else the site. */
 function useHashRoute(): string {
@@ -24,7 +22,6 @@ function useHashRoute(): string {
 export default function App() {
   const hash = useHashRoute();
   if (hash.startsWith('#/admin')) return <AdminDashboard />;
-  if (hash.startsWith('#/payment/callback')) return <PaymentCallback />;
 
   return (
     <>
@@ -39,7 +36,6 @@ export default function App() {
       <main>
         <HeroSection />
         <AboutSection />
-        <GallerySection />
         <CastSection />
         <BookingSection />
       </main>

@@ -1,15 +1,14 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { startZarinpalPayment } from './paymentService';
 import type { BookingRequest, BookingResult } from '../types';
 
 /**
  * Booking service — the ONLY place the UI talks to for submissions.
  *
  * When Supabase is configured (VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY in
- * `.env`), a booking is INSERTed as `pending`, then the buyer is redirected to
- * the Zarinpal payment page (see paymentService.ts). Prices and the reference
- * are authoritative on the server: prices are recalculated by a trigger and the
- * reference is constrained to be unique.
+ * `.env`), a booking is INSERTed as `pending` and the buyer's receipt screenshot
+ * is uploaded to Supabase Storage (bucket `receipts`). Prices are authoritative
+ * on the server: they are recalculated by a trigger and the reference is
+ * constrained to be unique.
  *
  * Without configuration the service falls back to DEMO MODE so the site still
  * runs during development: the reference is prefixed "DEMO-" and nothing is
@@ -18,6 +17,7 @@ import type { BookingRequest, BookingResult } from '../types';
 const REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_REFERENCE_ATTEMPTS = 3;
 const UNIQUE_VIOLATION = '23505';
+const RECEIPTS_BUCKET = 'receipts';
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -37,7 +37,15 @@ function generateDemoReference(): string {
   return `DEMO-${suffix}`;
 }
 
-export async function submitBooking(request: BookingRequest): Promise<BookingResult> {
+function fileExtension(name: string): string {
+  const index = name.lastIndexOf('.');
+  return index >= 0 ? name.slice(index).toLowerCase() : '.jpg';
+}
+
+export async function submitBooking(
+  request: BookingRequest,
+  receiptFile: File | null,
+): Promise<BookingResult> {
   if (!isSupabaseConfigured || !supabase) {
     await delay(1200);
     return {
@@ -45,6 +53,10 @@ export async function submitBooking(request: BookingRequest): Promise<BookingRes
       status: 'demo',
       statusNote: 'نسخهٔ نمایشی — هیچ پرداختی انجام نشده و صندلی‌ای رزرو نشده است.',
     };
+  }
+
+  if (!receiptFile) {
+    throw new Error('لطفاً تصویر رسید واریز را بارگذاری کنید.');
   }
 
   const row = {
@@ -59,7 +71,7 @@ export async function submitBooking(request: BookingRequest): Promise<BookingRes
     showtime_id: request.showtimeId,
     showtime_time: request.showtimeTime,
     status: 'pending',
-    status_note: 'در انتظار پرداخت',
+    status_note: 'در انتظار تأیید پرداخت',
   };
 
   for (let attempt = 1; attempt <= MAX_REFERENCE_ATTEMPTS; attempt++) {
@@ -69,12 +81,31 @@ export async function submitBooking(request: BookingRequest): Promise<BookingRes
       .insert({ reference, ...row });
 
     if (!error) {
-      const { url } = await startZarinpalPayment(reference);
+      const path = `${reference}${fileExtension(receiptFile.name)}`;
+      const { error: uploadError } = await supabase.storage
+        .from(RECEIPTS_BUCKET)
+        .upload(path, receiptFile, {
+          contentType: receiptFile.type || 'image/jpeg',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error('بارگذاری تصویر رسید ناموفق بود. لطفاً دوباره تلاش کنید.');
+      }
+
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ receipt_path: path })
+        .eq('reference', reference);
+
+      if (updateError) {
+        throw new Error('ثبت رسید ناموفق بود. لطفاً دوباره تلاش کنید.');
+      }
+
       return {
         reference,
-        status: 'pending_payment',
-        statusNote: 'در انتظار پرداخت — در حال انتقال به درگاه پرداخت…',
-        paymentUrl: url,
+        status: 'pending',
+        statusNote: 'سفارش شما ثبت شد؛ پس از تأیید رسید توسط مدیریت، بلیت صادر می‌شود.',
       };
     }
 
@@ -86,3 +117,4 @@ export async function submitBooking(request: BookingRequest): Promise<BookingRes
 
   throw new Error('ثبت سفارش ناموفق بود. لطفاً دوباره تلاش کنید.');
 }
+

@@ -3,7 +3,6 @@ import { theater } from "../config/theater";
 
 const NAV_LINKS = [
   { href: "#about", label: "دربارهٔ نمایش" },
-  { href: "#gallery", label: "تصاویر" },
   { href: "#cast", label: "عوامل" },
   { href: "#booking", label: "رزرو بلیت" },
 ];

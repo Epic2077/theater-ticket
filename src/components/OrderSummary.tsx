@@ -1,5 +1,6 @@
 import { theater } from '../config/theater';
 import { pricing, totalPrice, unitPrice } from '../config/pricing';
+import { payment } from '../config/payment';
 import {
   formatCurrency,
   formatPerformanceDate,
@@ -59,6 +60,28 @@ export function OrderSummary({ form, performance }: OrderSummaryProps) {
           </dd>
         </div>
       </dl>
+
+      <div className="border-t border-line px-[1.6rem] py-[1.2rem]">
+        <p className="m-0 text-[0.8rem] font-bold tracking-[0.15em] text-gold">
+          پرداخت کارت به کارت
+        </p>
+        <p className="mt-2 text-[0.9rem] leading-[1.9] text-ink-muted">
+          مبلغ را به کارت زیر واریز کنید و تصویر رسید را در فرم بارگذاری کنید.
+        </p>
+        <div className="mt-3 flex items-center justify-between gap-3 border border-line bg-surface-2 px-4 py-3">
+          <span className="text-[0.85rem] text-ink-muted">شماره کارت</span>
+          <span className="font-mono text-[0.95rem] font-bold tracking-[0.05em]" dir="ltr">
+            {payment.cardNumber}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3 border border-t-0 border-line bg-surface-2 px-4 py-3">
+          <span className="text-[0.85rem] text-ink-muted">به نام</span>
+          <span className="text-[0.9rem]">{payment.cardHolder}</span>
+        </div>
+        {payment.bankName && (
+          <p className="m-0 mt-2 text-[0.78rem] text-ink-muted">بانک: {payment.bankName}</p>
+        )}
+      </div>
 
       <p className="m-0 border-t border-line px-[1.6rem] py-[1rem] text-[0.78rem] leading-[1.9] text-ink-muted">
         حداکثر {toPersianDigits(pricing.maxTicketsPerOrder)} بلیت در هر سفارش؛

@@ -91,7 +91,7 @@ const valid = validateBooking({
   phone: '+989123456789',
   quantity: 2,
   performanceId: perf.id,
-  showtimeId: perf.showtimes[1].id,
+  showtimeId: perf.showtimes[0].id,
   studentCode: ' ۱۲۳۴۵ ',
 });
 check('valid form passes', Boolean(valid.request));

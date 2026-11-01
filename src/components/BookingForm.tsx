@@ -1,33 +1,43 @@
-import { useState, type FormEvent } from 'react';
-import { performances } from '../data/performances';
-import { pricing, totalPrice } from '../config/pricing';
-import type { BookingErrors, BookingFormValues, BookingRequest } from '../types';
-import { validateBooking } from '../utils/validation';
+import { useState, type FormEvent } from "react";
+import { performances } from "../data/performances";
+import { pricing, totalPrice } from "../config/pricing";
+import { isSupabaseConfigured } from "../lib/supabase";
+import type {
+  BookingErrors,
+  BookingFormValues,
+  BookingRequest,
+} from "../types";
+import { validateBooking } from "../utils/validation";
 import {
   formatCurrency,
   formatPerformanceDate,
   formatTime,
   toPersianDigits,
-} from '../utils/format';
+} from "../utils/format";
 
 interface BookingFormProps {
   form: BookingFormValues;
   onChange: (patch: Partial<BookingFormValues>) => void;
-  onSubmit: (request: BookingRequest) => Promise<void>;
+  onSubmit: (
+    request: BookingRequest,
+    receiptFile: File | null,
+  ) => Promise<void>;
 }
 
 const inputClass =
-  'min-h-[3.2rem] w-full appearance-none rounded-none border border-line-strong bg-surface px-4 py-[0.8rem] font-body text-base text-ink transition-[border-color,background-color] duration-[250ms] ease-theater hover:border-ink-muted focus:border-gold focus:bg-surface-2 focus:outline-none aria-invalid:border-accent!';
+  "min-h-[3.2rem] w-full appearance-none rounded-none border border-line-strong bg-surface px-4 py-[0.8rem] font-body text-base text-ink transition-[border-color,background-color] duration-[250ms] ease-theater hover:border-ink-muted focus:border-gold focus:bg-surface-2 focus:outline-none aria-invalid:border-accent!";
 
 const selectArrowClass =
-  'cursor-pointer bg-[linear-gradient(45deg,transparent_50%,var(--color-ink-muted)_50%),linear-gradient(135deg,var(--color-ink-muted)_50%,transparent_50%)] bg-no-repeat pe-[2.4rem] [background-position:calc(0%_+_1.4rem)_55%,calc(0%_+_1.05rem)_55%] [background-size:6px_6px,6px_6px]';
+  "cursor-pointer bg-[linear-gradient(45deg,transparent_50%,var(--color-ink-muted)_50%),linear-gradient(135deg,var(--color-ink-muted)_50%,transparent_50%)] bg-no-repeat pe-[2.4rem] [background-position:calc(0%_+_1.4rem)_55%,calc(0%_+_1.05rem)_55%] [background-size:6px_6px,6px_6px]";
 
-const labelClass = 'text-[0.88rem] font-medium text-ink';
+const labelClass = "text-[0.88rem] font-medium text-ink";
 
 export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
   const [errors, setErrors] = useState<BookingErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
 
   const selectedPerformance =
     performances.find((p) => p.id === form.performanceId) ?? performances[0];
@@ -39,12 +49,19 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
     const { errors: nextErrors, request } = validateBooking(form);
     setErrors(nextErrors);
     if (!request) return;
+
+    if (isSupabaseConfigured && !receiptFile) {
+      setReceiptError("لطفاً تصویر رسید واریز را بارگذاری کنید.");
+      return;
+    }
+    setReceiptError(null);
+
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await onSubmit(request);
+      await onSubmit(request, receiptFile);
     } catch {
-      setSubmitError('خطایی رخ داد؛ لطفاً دوباره تلاش کنید.');
+      setSubmitError("خطایی رخ داد؛ لطفاً دوباره تلاش کنید.");
     } finally {
       setSubmitting(false);
     }
@@ -77,7 +94,7 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
             value={form.firstName}
             onChange={(e) => onChange({ firstName: e.target.value })}
             aria-invalid={Boolean(errors.firstName)}
-            aria-describedby={errors.firstName ? 'firstName-error' : undefined}
+            aria-describedby={errors.firstName ? "firstName-error" : undefined}
             className={inputClass}
           />
           {errors.firstName && (
@@ -98,7 +115,7 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
             value={form.lastName}
             onChange={(e) => onChange({ lastName: e.target.value })}
             aria-invalid={Boolean(errors.lastName)}
-            aria-describedby={errors.lastName ? 'lastName-error' : undefined}
+            aria-describedby={errors.lastName ? "lastName-error" : undefined}
             className={inputClass}
           />
           {errors.lastName && (
@@ -124,7 +141,7 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
             value={form.phone}
             onChange={(e) => onChange({ phone: e.target.value })}
             aria-invalid={Boolean(errors.phone)}
-            aria-describedby={errors.phone ? 'phone-error' : 'phone-hint'}
+            aria-describedby={errors.phone ? "phone-error" : "phone-hint"}
             className={`${inputClass} text-left`}
           />
           {errors.phone ? (
@@ -193,14 +210,14 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
               const perf = performances.find((p) => p.id === e.target.value);
               onChange({
                 performanceId: e.target.value,
-                showtimeId: perf?.showtimes[0]?.id ?? '',
+                showtimeId: perf?.showtimes[0]?.id ?? "",
               });
             }}
             className={`${inputClass} ${selectArrowClass}`}
           >
             {performances.map((p) => (
               <option key={p.id} value={p.id}>
-                {formatPerformanceDate(p.dateISO, 'full')}
+                {formatPerformanceDate(p.dateISO, "full")}
               </option>
             ))}
           </select>
@@ -229,12 +246,12 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
                   <span
                     className={`inline-flex items-baseline gap-[0.6rem] border px-[1.3rem] py-[0.65rem] transition-[border-color,background-color] duration-[250ms] ease-theater peer-focus-visible:outline-2 peer-focus-visible:outline-offset-[3px] peer-focus-visible:outline-gold ${
                       selected
-                        ? 'border-accent bg-accent/15'
-                        : 'border-line-strong bg-surface hover:border-gold'
+                        ? "border-accent bg-accent/15"
+                        : "border-line-strong bg-surface hover:border-gold"
                     }`}
                   >
                     <span
-                      className={`font-display text-[1.05rem] font-bold ${selected ? 'text-gold' : ''}`}
+                      className={`font-display text-[1.05rem] font-bold ${selected ? "text-gold" : ""}`}
                     >
                       {formatTime(showtime.time)}
                     </span>
@@ -268,7 +285,9 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
           value={form.studentCode}
           onChange={(e) => onChange({ studentCode: e.target.value })}
           aria-invalid={Boolean(errors.studentCode)}
-          aria-describedby={errors.studentCode ? 'studentCode-error' : 'studentCode-hint'}
+          aria-describedby={
+            errors.studentCode ? "studentCode-error" : "studentCode-hint"
+          }
           className={`${inputClass} text-left`}
         />
         {errors.studentCode ? (
@@ -282,14 +301,39 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
         )}
       </div>
 
+      <div className="flex min-w-0 flex-col gap-[0.45rem]">
+        <label htmlFor="receipt" className={labelClass}>
+          تصویر رسید واریز{isSupabaseConfigured ? "" : " (اختیاری)"}
+        </label>
+        <input
+          id="receipt"
+          type="file"
+          accept="image/*"
+          onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+          aria-invalid={Boolean(receiptError)}
+          aria-describedby={receiptError ? "receipt-error" : "receipt-hint"}
+          className="cursor-pointer border border-line-strong bg-surface px-4 py-[0.8rem] text-[0.9rem] text-ink file:me-3 file:cursor-pointer file:border-0 file:bg-accent file:px-4 file:py-2 file:text-[0.82rem] file:text-ink"
+        />
+        {receiptError ? (
+          <p id="receipt-error" className="text-[0.8rem] text-error">
+            {receiptError}
+          </p>
+        ) : (
+          <p id="receipt-hint" className="text-[0.76rem] text-ink-muted">
+            مبلغ را کارت به کارت واریز کنید و تصویر رسید (اسکرین‌شات) را اینجا
+            بارگذاری کنید.
+          </p>
+        )}
+      </div>
+
       <button
         type="submit"
         disabled={submitting}
         className="btn btn-primary btn-lg w-full"
       >
         {submitting
-          ? 'در حال اتصال به درگاه...'
-          : `پرداخت و رزرو بلیت · ${formatCurrency(
+          ? "در حال ثبت..."
+          : `ثبت رزرو و ارسال رسید · ${formatCurrency(
               totalPrice(form.quantity, isStudent),
               pricing.currency,
             )}`}

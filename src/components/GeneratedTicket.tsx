@@ -10,7 +10,6 @@ import {
   toPersianDigits,
 } from '../utils/format';
 import type { TicketData } from '../types';
-import { ArtImage } from './ArtImage';
 
 interface GeneratedTicketProps {
   ticket: TicketData;
@@ -55,13 +54,17 @@ export function GeneratedTicket({
     <article className="animate-ticket-in border border-line bg-surface text-ink print:border-black print:bg-white print:text-black">
       <div className="grid grid-cols-1 sm:grid-cols-[10rem_1fr]">
         <div className="relative border-b border-line p-4 sm:border-b-0 sm:border-e print:border-b-black sm:print:border-e-black">
-          <ArtImage
-            src="/images/poster.jpg"
-            alt={`پوستر نمایش ${theater.productionTitle}`}
-            fallbackLabel={theater.productionTitle}
-            compact
-            className="aspect-[3/4] w-full border border-line object-cover print:border-black"
-          />
+          <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-3 border border-line bg-surface p-4 text-center print:border-black print:bg-white">
+            <span className="font-display text-[0.72rem] tracking-[0.3em] text-gold print:text-black">
+              {theater.groupName}
+            </span>
+            <span className="font-display text-[1.2rem] font-extrabold leading-snug">
+              {theater.productionTitle}
+            </span>
+            <span className="text-[0.72rem] tracking-[0.2em] text-ink-muted print:text-black">
+              {theater.productionType}
+            </span>
+          </div>
           <span className="mt-3 block text-center text-[0.72rem] tracking-[0.2em] text-ink-muted print:text-black">
             {theater.venue.name}
           </span>

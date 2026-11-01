@@ -38,10 +38,12 @@ function bookingSearchText(booking: BookingRecord): string {
   );
 }
 
+type DashboardBooking = BookingRecord & { receipt_url?: string };
+
 export function AdminDashboard() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
-  const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [bookings, setBookings] = useState<DashboardBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -53,18 +55,31 @@ export function AdminDashboard() {
 
   const loadBookings = async () => {
     if (!supabase) return;
+    const client = supabase;
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
+    const { data, error: fetchError } = await client
       .from('bookings')
       .select('*')
-      .eq('status', 'paid')
       .order('created_at', { ascending: false });
+
     if (fetchError) {
       setError(`دریافت بلیت‌ها ناموفق بود: ${fetchError.message}`);
-    } else {
-      setBookings((data as BookingRecord[]) ?? []);
+      setLoading(false);
+      return;
     }
+
+    const rows = (data as BookingRecord[]) ?? [];
+    const withReceipts = await Promise.all(
+      rows.map(async (b) => {
+        if (!b.receipt_path) return b;
+        const { data: signed } = await client.storage
+          .from('receipts')
+          .createSignedUrl(b.receipt_path, 60 * 60);
+        return { ...b, receipt_url: signed?.signedUrl } as DashboardBooking;
+      }),
+    );
+    setBookings(withReceipts);
     setLoading(false);
   };
 
@@ -120,15 +135,30 @@ export function AdminDashboard() {
     setBookings([]);
   };
 
+  const handleApprove = async (id: string) => {
+    if (!supabase) return;
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ status: 'paid', paid_at: new Date().toISOString() })
+      .eq('id', id);
+    if (updateError) {
+      setError(`تأیید پرداخت ناموفق بود: ${updateError.message}`);
+      return;
+    }
+    await loadBookings();
+  };
+
   const filtered = useMemo(() => {
     const query = normalizeSearch(search);
     if (!query) return bookings;
     return bookings.filter((b) => bookingSearchText(b).includes(query));
   }, [bookings, search]);
 
-  const totalTickets = bookings.reduce((sum, b) => sum + b.quantity, 0);
-  const totalRevenue = bookings.reduce((sum, b) => sum + b.total_price, 0);
-  const studentBookings = bookings.filter((b) => b.is_student).length;
+  const paid = bookings.filter((b) => b.status === 'paid');
+  const pendingCount = bookings.filter((b) => b.status === 'pending').length;
+  const totalTickets = paid.reduce((sum, b) => sum + b.quantity, 0);
+  const totalRevenue = paid.reduce((sum, b) => sum + b.total_price, 0);
+  const studentBookings = paid.filter((b) => b.is_student).length;
 
   const nightlySales = useMemo(() => {
     const byDate = new Map<
@@ -136,6 +166,7 @@ export function AdminDashboard() {
       { tickets: number; revenue: number; orders: number; times: Map<string, number> }
     >();
     for (const b of bookings) {
+      if (b.status !== 'paid') continue;
       let entry = byDate.get(b.performance_date);
       if (!entry) {
         entry = { tickets: 0, revenue: 0, orders: 0, times: new Map() };
@@ -265,10 +296,11 @@ export function AdminDashboard() {
         </div>
       </header>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="تعداد بلیت‌ها" value={toPersianDigits(totalTickets)} />
         <Stat label="درآمد کل" value={formatCurrency(totalRevenue, pricing.currency)} />
         <Stat label="سفارش دانشجویی" value={toPersianDigits(studentBookings)} />
+        <Stat label="در انتظار تأیید" value={toPersianDigits(pendingCount)} />
       </div>
 
       <section className="mt-10" aria-labelledby="nightly-title">
@@ -348,7 +380,7 @@ export function AdminDashboard() {
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-ink-muted">هیچ بلیتی یافت نشد.</div>
         ) : (
-          <table className="w-full min-w-[62rem] border-collapse text-[0.85rem]">
+          <table className="w-full min-w-[72rem] border-collapse text-[0.85rem]">
             <thead>
               <tr className="text-ink-muted">
                 {[
@@ -362,6 +394,8 @@ export function AdminDashboard() {
                   'تاریخ اجرا',
                   'سانس',
                   'مبلغ',
+                  'وضعیت',
+                  'رسید',
                   'زمان ثبت',
                 ].map((heading) => (
                   <th
@@ -395,6 +429,47 @@ export function AdminDashboard() {
                   <td className="border-b border-line px-3 py-2">{formatTime(b.showtime_time)}</td>
                   <td className="border-b border-line px-3 py-2">
                     {formatCurrency(b.total_price, pricing.currency)}
+                  </td>
+                  <td className="border-b border-line px-3 py-2">
+                    {b.status === 'paid' ? (
+                      <span className="inline-flex items-center gap-1.5 text-[0.78rem] text-gold">
+                        <span className="size-1.5 rounded-full bg-gold" aria-hidden="true" />
+                        تأییدشده
+                      </span>
+                    ) : (
+                      <span className="inline-flex flex-col items-start gap-1.5 text-[0.78rem] text-ink-muted">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="size-1.5 rounded-full bg-ink-muted" aria-hidden="true" />
+                          در انتظار تأیید
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(b.id)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          تأیید پرداخت
+                        </button>
+                      </span>
+                    )}
+                  </td>
+                  <td className="border-b border-line px-3 py-2">
+                    {b.receipt_url ? (
+                      <a
+                        href={b.receipt_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block"
+                        title={`مشاهدهٔ رسید ${b.reference}`}
+                      >
+                        <img
+                          src={b.receipt_url}
+                          alt={`رسید واریز ${b.reference}`}
+                          className="h-12 w-12 border border-line object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <span className="text-ink-muted">—</span>
+                    )}
                   </td>
                   <td className="border-b border-line px-3 py-2">
                     {new Date(b.created_at).toLocaleString('fa-IR')}

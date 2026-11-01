@@ -3,7 +3,6 @@ import { toPersianDigits } from "../utils/format";
 
 const footerLinks = [
   { href: "#about", label: "دربارهٔ نمایش" },
-  { href: "#gallery", label: "تصاویر" },
   { href: "#cast", label: "عوامل" },
   { href: "#booking", label: "رزرو بلیت" },
 ];

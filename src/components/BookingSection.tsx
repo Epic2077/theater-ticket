@@ -68,8 +68,8 @@ export function BookingSection() {
             صندلی خود را انتخاب کنید
           </h2>
           <p className="section-lead">
-            پس از تکمیل فرم به درگاه پرداخت امن زرین‌پال منتقل می‌شوید و بلیت شما
-            بلافاصله پس از پرداخت با کد رهگیری و QR صادر می‌شود.
+            مبلغ را کارت به کارت واریز و تصویر رسید را بارگذاری کنید؛ بلیت شما پس از
+            تأیید پرداخت توسط مدیریت صادر می‌شود.
           </p>
         </Reveal>
 
@@ -79,18 +79,14 @@ export function BookingSection() {
               <BookingForm
                 form={form}
                 onChange={update}
-                onSubmit={async (request) => {
-                  const res = await submitBooking(request);
-                  if (res.status === 'pending_payment' && res.paymentUrl) {
-                    window.location.href = res.paymentUrl;
-                    return;
-                  }
+                onSubmit={async (request, receiptFile) => {
+                  const res = await submitBooking(request, receiptFile);
                   setResult(res);
                 }}
               />
             </Reveal>
 
-            {result && ticket && (
+            {result && result.status === 'demo' && ticket && (
               <div
                 ref={ticketRef}
                 tabIndex={-1}
@@ -104,6 +100,37 @@ export function BookingSection() {
                     setForm(DEFAULT_FORM);
                   }}
                 />
+              </div>
+            )}
+
+            {result && result.status === 'pending' && (
+              <div
+                ref={ticketRef}
+                tabIndex={-1}
+                className="mt-12 border border-line bg-surface p-8 text-center outline-none"
+                aria-live="polite"
+              >
+                <p className="m-0 text-[0.8rem] tracking-[0.3em] text-gold">سفارش ثبت شد</p>
+                <h3 className="m-0 mt-2 text-xl font-extrabold">در انتظار تأیید پرداخت</h3>
+                <p className="mt-3 text-[0.95rem] text-ink-muted">
+                  کد پیگیری:{' '}
+                  <span dir="ltr" className="font-mono font-bold text-ink">
+                    {result.reference}
+                  </span>
+                </p>
+                <p className="mx-auto mt-2 max-w-[44ch] text-[0.9rem] text-ink-muted">
+                  {result.statusNote}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResult(null);
+                    setForm(DEFAULT_FORM);
+                  }}
+                  className="btn btn-ghost mt-6"
+                >
+                  رزرو جدید
+                </button>
               </div>
             )}
           </div>
