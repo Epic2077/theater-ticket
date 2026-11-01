@@ -79,8 +79,12 @@ export function BookingForm({ form, onChange, onSubmit }: BookingFormProps) {
     setSubmitError(null);
     try {
       await onSubmit(request, receiptFile);
-    } catch {
-      setSubmitError("خطایی رخ داد؛ لطفاً دوباره تلاش کنید.");
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error && error.message
+          ? error.message
+          : "خطایی رخ داد؛ لطفاً دوباره تلاش کنید.",
+      );
     } finally {
       setSubmitting(false);
     }

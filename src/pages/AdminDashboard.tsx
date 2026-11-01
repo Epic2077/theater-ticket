@@ -310,19 +310,6 @@ export function AdminDashboard() {
     setBookings([]);
   };
 
-  const handleApprove = async (id: string) => {
-    if (!supabase) return;
-    const { error: updateError } = await supabase
-      .from("bookings")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("id", id);
-    if (updateError) {
-      setError(`تأیید پرداخت ناموفق بود: ${updateError.message}`);
-      return;
-    }
-    await loadBookings();
-  };
-
   const nights = useMemo(() => {
     const set = new Set(bookings.map((b) => b.performance_date));
     return Array.from(set).sort();
@@ -696,24 +683,27 @@ export function AdminDashboard() {
                 className={inputClass}
               />
             </div>
-            {/* <div className="flex flex-col gap-[0.45rem]">
-          <label htmlFor="submission-date" className="text-[0.88rem] font-medium">
-            روز ثبت سفارش
-          </label>
-          <select
-            id="submission-date"
-            value={submissionDateFilter}
-            onChange={(e) => setSubmissionDateFilter(e.target.value)}
-            className="min-h-[3.2rem] w-full cursor-pointer border border-line-strong bg-surface px-4 py-[0.8rem] font-body text-base text-ink transition-[border-color] duration-[250ms] hover:border-ink-muted focus:border-gold focus:outline-none"
-          >
-            <option value="all">همهٔ روزها</option>
-            {submissionDates.map((date) => (
-              <option key={date} value={date}>
-                {formatSubmissionDate(date)}
-              </option>
-            ))}
-          </select>
-        </div> */}
+            <div className="flex flex-col gap-[0.45rem]">
+              <label
+                htmlFor="submission-date"
+                className="text-[0.88rem] font-medium"
+              >
+                روز ثبت سفارش
+              </label>
+              <select
+                id="submission-date"
+                value={submissionDateFilter}
+                onChange={(e) => setSubmissionDateFilter(e.target.value)}
+                className="min-h-[3.2rem] w-full cursor-pointer border border-line-strong bg-surface px-4 py-[0.8rem] font-body text-base text-ink transition-[border-color] duration-[250ms] hover:border-ink-muted focus:border-gold focus:outline-none"
+              >
+                <option value="all">همهٔ روزها</option>
+                {submissionDates.map((date) => (
+                  <option key={date} value={date}>
+                    {formatSubmissionDate(date)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {error && (
@@ -830,13 +820,9 @@ export function AdminDashboard() {
                               />
                               در انتظار تأیید
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleApprove(b.id)}
-                              className="btn btn-primary btn-sm"
-                            >
-                              تأیید پرداخت
-                            </button>
+                            <span className="text-[0.72rem]">
+                              رکورد قدیمی
+                            </span>
                           </span>
                         )}
                       </td>

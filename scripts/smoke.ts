@@ -94,6 +94,9 @@ check('unscheduled date rejected', Boolean(fakeDate.errors.performanceId));
 
 // Validation — valid, mixed rates
 const perf = performances[0];
+const testReceipt = new File([new Uint8Array([1])], 'receipt.jpg', {
+  type: 'image/jpeg',
+});
 const valid = validateBooking({
   phone: '+989123456789',
   quantity: 3,
@@ -104,7 +107,7 @@ const valid = validateBooking({
     { firstName: 'دانشجو', lastName: 'دانش', studentCode: ' ۳۹۰۱۲۳۴۵ ' },
     { firstName: 'رایگان', lastName: 'رایگان', studentCode: '919392077' },
   ],
-});
+}, testReceipt);
 check('valid form passes', Boolean(valid.request));
 check('names trimmed', valid.request?.attendees[0].firstName === 'آزما');
 check('phone normalized in request', valid.request?.phone === '09123456789');

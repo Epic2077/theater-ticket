@@ -37,7 +37,7 @@ export const theater = {
 
   contact: {
     // Placeholders — replace with real contact channels before publishing.
-    phone: "۰۲۱-۶۶۴۰۰۰۰۰",
+    phone: "۰۹۳۳۸۴۸۴۷۹۶",
     email: "info@example.ir",
     instagram: "https://instagram.com/",
     website: "https://example.ir",
