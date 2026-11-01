@@ -1,6 +1,7 @@
 import { theater } from '../config/theater';
-import { pricing, totalPrice, unitPrice } from '../config/pricing';
+import { pricing, unitPrice } from '../config/pricing';
 import { payment } from '../config/payment';
+import { classifyStudentCode, rateLabel } from '../utils/studentCode';
 import {
   formatCurrency,
   formatPerformanceDate,
@@ -16,9 +17,10 @@ interface OrderSummaryProps {
 
 export function OrderSummary({ form, performance }: OrderSummaryProps) {
   const showtime = performance?.showtimes.find((s) => s.id === form.showtimeId);
-  const isStudent = form.studentCode.trim().length > 0;
-  const unit = unitPrice(isStudent);
-  const total = totalPrice(form.quantity, isStudent);
+  const total = form.attendees.reduce(
+    (sum, a) => sum + unitPrice(classifyStudentCode(a.studentCode) ?? 'regular'),
+    0,
+  );
 
   const rows = [
     { label: 'نمایش', value: theater.productionTitle },
@@ -33,8 +35,6 @@ export function OrderSummary({ form, performance }: OrderSummaryProps) {
         : '—',
     },
     { label: 'تعداد بلیت', value: `${toPersianDigits(form.quantity)} عدد` },
-    { label: 'نوع بلیت', value: isStudent ? 'دانشجویی' : 'عادی' },
-    { label: 'قیمت واحد', value: formatCurrency(unit, pricing.currency) },
   ];
 
   return (
@@ -53,11 +53,32 @@ export function OrderSummary({ form, performance }: OrderSummaryProps) {
             <dd className="m-0 text-end">{row.value}</dd>
           </div>
         ))}
+
+        <div className="border-b border-line py-[0.8rem]">
+          <p className="m-0 mb-[0.4rem] text-[0.78rem] text-ink-muted">بلیت‌ها</p>
+          <ul className="m-0 list-none space-y-[0.35rem] p-0">
+            {form.attendees.map((a, i) => {
+              const rate = classifyStudentCode(a.studentCode) ?? 'regular';
+              return (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 text-[0.85rem]"
+                >
+                  <span className="min-w-0 truncate">
+                    {toPersianDigits(i + 1)}. {a.firstName || '—'} {a.lastName}
+                  </span>
+                  <span className="shrink-0 text-ink-muted">
+                    {rateLabel(rate)} · {formatCurrency(unitPrice(rate), pricing.currency)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
         <div className="flex justify-between gap-4 py-[1rem] text-[1.05rem] font-bold">
           <dt>جمع کل</dt>
-          <dd className="m-0 text-end text-gold">
-            {formatCurrency(total, pricing.currency)}
-          </dd>
+          <dd className="m-0 text-end text-gold">{formatCurrency(total, pricing.currency)}</dd>
         </div>
       </dl>
 
@@ -84,8 +105,8 @@ export function OrderSummary({ form, performance }: OrderSummaryProps) {
       </div>
 
       <p className="m-0 border-t border-line px-[1.6rem] py-[1rem] text-[0.78rem] leading-[1.9] text-ink-muted">
-        حداکثر {toPersianDigits(pricing.maxTicketsPerOrder)} بلیت در هر سفارش؛
-        مبلغ نهایی هنگام رزرو نمایش داده می‌شود.
+        حداکثر {toPersianDigits(pricing.maxTicketsPerOrder)} بلیت در هر سفارش؛ مبلغ نهایی هنگام
+        رزرو نمایش داده می‌شود.
       </p>
     </aside>
   );

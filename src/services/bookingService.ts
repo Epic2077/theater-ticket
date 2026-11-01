@@ -1,18 +1,17 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import type { BookingRequest, BookingResult } from '../types';
+import { unitPrice } from '../config/pricing';
+import { classifyStudentCode } from '../utils/studentCode';
+import type { AttendeeRow, BookingRequest, BookingResult } from '../types';
 
 /**
  * Booking service — the ONLY place the UI talks to for submissions.
  *
- * When Supabase is configured (VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY in
- * `.env`), a booking is INSERTed as `pending` and the buyer's receipt screenshot
- * is uploaded to Supabase Storage (bucket `receipts`). Prices are authoritative
- * on the server: they are recalculated by a trigger and the reference is
- * constrained to be unique.
+ * When Supabase is configured, a booking is INSERTed as `paid` with the full
+ * attendee list. The server recomputes `quantity` and `total_price` from the
+ * attendees (regular 125000 / student 85000 / free 0). If a receipt screenshot
+ * was provided it is uploaded to Supabase Storage, but it is optional.
  *
- * Without configuration the service falls back to DEMO MODE so the site still
- * runs during development: the reference is prefixed "DEMO-" and nothing is
- * paid, reserved or issued.
+ * Without configuration the service falls back to DEMO MODE.
  */
 const REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_REFERENCE_ATTEMPTS = 3;
@@ -55,23 +54,19 @@ export async function submitBooking(
     };
   }
 
-  if (!receiptFile) {
-    throw new Error('لطفاً تصویر رسید واریز را بارگذاری کنید.');
-  }
+  const attendees: AttendeeRow[] = request.attendees.map((a) => {
+    const rate = classifyStudentCode(a.studentCode) ?? 'regular';
+    return { ...a, rate, price: unitPrice(rate) };
+  });
 
+  const buyer = attendees[0];
   const row = {
-    first_name: request.firstName,
-    last_name: request.lastName,
+    first_name: buyer.firstName,
+    last_name: buyer.lastName,
     phone: request.phone,
-    quantity: request.quantity,
-    is_student: request.isStudent,
-    student_code: request.studentCode || null,
-    performance_id: request.performanceId,
-    performance_date: request.performanceDateISO,
-    showtime_id: request.showtimeId,
-    showtime_time: request.showtimeTime,
-    status: 'pending',
-    status_note: 'در انتظار تأیید پرداخت',
+    attendees,
+    status: 'paid',
+    status_note: 'پرداخت ثبت شد — بلیت صادر شد.',
   };
 
   for (let attempt = 1; attempt <= MAX_REFERENCE_ATTEMPTS; attempt++) {
@@ -81,31 +76,24 @@ export async function submitBooking(
       .insert({ reference, ...row });
 
     if (!error) {
-      const path = `${reference}${fileExtension(receiptFile.name)}`;
-      const { error: uploadError } = await supabase.storage
-        .from(RECEIPTS_BUCKET)
-        .upload(path, receiptFile, {
-          contentType: receiptFile.type || 'image/jpeg',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error('بارگذاری تصویر رسید ناموفق بود. لطفاً دوباره تلاش کنید.');
-      }
-
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ receipt_path: path })
-        .eq('reference', reference);
-
-      if (updateError) {
-        throw new Error('ثبت رسید ناموفق بود. لطفاً دوباره تلاش کنید.');
+      if (receiptFile) {
+        const path = `${reference}${fileExtension(receiptFile.name)}`;
+        await supabase.storage
+          .from(RECEIPTS_BUCKET)
+          .upload(path, receiptFile, {
+            contentType: receiptFile.type || 'image/jpeg',
+            upsert: false,
+          });
+        await supabase
+          .from('bookings')
+          .update({ receipt_path: path })
+          .eq('reference', reference);
       }
 
       return {
         reference,
-        status: 'pending',
-        statusNote: 'سفارش شما ثبت شد؛ پس از تأیید رسید توسط مدیریت، بلیت صادر می‌شود.',
+        status: 'confirmed',
+        statusNote: 'پرداخت ثبت شد؛ بلیت شما صادر شد.',
       };
     }
 

@@ -1,13 +1,16 @@
 import type {
+  Attendee,
+  AttendeeErrors,
   BookingErrors,
   BookingFormValues,
   BookingRequest,
   Performance,
   Showtime,
 } from '../types';
-import { pricing, totalPrice } from '../config/pricing';
+import { pricing, unitPrice } from '../config/pricing';
 import { findPerformance, findShowtime } from '../data/performances';
 import { normalizeIranianMobile } from './phone';
+import { classifyStudentCode, normalizeStudentCode } from './studentCode';
 
 export interface ValidationResult {
   errors: BookingErrors;
@@ -21,25 +24,9 @@ function isPastDate(dateISO: string): boolean {
   return new Date(`${dateISO}T00:00:00`) < today;
 }
 
-/** Accepts letters/digits (incl. Persian/Arabic digits) after normalization. */
-const STUDENT_CODE_PATTERN = /^[A-Za-z0-9]{4,30}$/;
-
-function normalizeStudentCode(raw: string): string {
-  return raw
-    .trim()
-    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-    .replace(/[\s-]/g, '');
-}
-
-/** Centralized client-side validation. The server MUST re-validate everything. */
+/** Centralized client-side validation. The server re-validates everything. */
 export function validateBooking(values: BookingFormValues): ValidationResult {
   const errors: BookingErrors = {};
-
-  const firstName = values.firstName.trim();
-  const lastName = values.lastName.trim();
-  if (!firstName) errors.firstName = 'لطفاً نام خود را وارد کنید.';
-  if (!lastName) errors.lastName = 'لطفاً نام خانوادگی خود را وارد کنید.';
 
   const phone = normalizeIranianMobile(values.phone);
   if (!values.phone.trim()) {
@@ -52,12 +39,6 @@ export function validateBooking(values: BookingFormValues): ValidationResult {
     errors.quantity = 'حداقل یک بلیت انتخاب کنید.';
   } else if (values.quantity > pricing.maxTicketsPerOrder) {
     errors.quantity = `حداکثر ${pricing.maxTicketsPerOrder} بلیت در هر سفارش مجاز است.`;
-  }
-
-  const studentCode = normalizeStudentCode(values.studentCode);
-  const isStudent = studentCode.length > 0;
-  if (isStudent && !STUDENT_CODE_PATTERN.test(studentCode)) {
-    errors.studentCode = 'کد دانشجویی نامعتبر است.';
   }
 
   let performance: Performance | undefined;
@@ -82,22 +63,50 @@ export function validateBooking(values: BookingFormValues): ValidationResult {
     }
   }
 
+  // Attendees — one entry per ticket.
+  const attendees: Attendee[] = [];
+  const attendeeErrors: AttendeeErrors[] = [];
+  let expectedTotal = 0;
+
+  for (const raw of values.attendees) {
+    const errs: AttendeeErrors = {};
+    const firstName = raw.firstName.trim();
+    const lastName = raw.lastName.trim();
+    if (!firstName) errs.firstName = 'نام الزامی است.';
+    if (!lastName) errs.lastName = 'نام خانوادگی الزامی است.';
+
+    const rate = classifyStudentCode(raw.studentCode);
+    if (rate === null) {
+      errs.studentCode = 'کد دانشجویی نامعتبر است.';
+    } else {
+      expectedTotal += unitPrice(rate);
+    }
+
+    attendees.push({
+      firstName,
+      lastName,
+      studentCode: normalizeStudentCode(raw.studentCode),
+    });
+    attendeeErrors.push(errs);
+  }
+
+  if (attendeeErrors.some((e) => Object.keys(e).length > 0)) {
+    errors.attendees = attendeeErrors;
+  }
+
   if (Object.keys(errors).length > 0 || !performance) return { errors };
 
   return {
     errors,
     request: {
-      firstName,
-      lastName,
       phone: phone!,
       quantity: values.quantity,
       performanceId: values.performanceId,
       showtimeId: values.showtimeId,
       performanceDateISO: performance.dateISO,
       showtimeTime: showtime?.time ?? '',
-      studentCode: isStudent ? studentCode : '',
-      isStudent,
-      expectedTotal: totalPrice(values.quantity, isStudent),
+      attendees,
+      expectedTotal,
     },
   };
 }

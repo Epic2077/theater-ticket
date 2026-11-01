@@ -9,6 +9,7 @@ import {
   formatTime,
   toPersianDigits,
 } from '../utils/format';
+import { rateLabel } from '../utils/studentCode';
 import type { TicketData } from '../types';
 
 interface GeneratedTicketProps {
@@ -111,13 +112,33 @@ export function GeneratedTicket({
               <dd className="m-0 text-end">{formatTime(ticket.showtime)}</dd>
             </div>
             <div className="flex justify-between gap-3 border-b border-line py-[0.6rem] text-[0.9rem] print:border-black">
-              <dt className="text-ink-muted print:text-black">تعداد / نوع</dt>
-              <dd className="m-0 text-end">
-                {toPersianDigits(ticket.quantity)} عدد ·{' '}
-                {ticket.isStudent ? 'دانشجویی' : 'عادی'}
-              </dd>
+              <dt className="text-ink-muted print:text-black">تعداد</dt>
+              <dd className="m-0 text-end">{toPersianDigits(ticket.quantity)} عدد</dd>
             </div>
           </dl>
+
+          {ticket.attendees.length > 0 && (
+            <div className="border-b border-line pb-[0.8rem] print:border-black">
+              <p className="m-0 mb-[0.4rem] text-[0.75rem] text-ink-muted print:text-black">
+                بلیت‌ها
+              </p>
+              <ul className="m-0 list-none space-y-[0.3rem] p-0">
+                {ticket.attendees.map((a, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between gap-3 text-[0.85rem]"
+                  >
+                    <span>
+                      {toPersianDigits(i + 1)}. {a.firstName} {a.lastName}
+                    </span>
+                    <span className="text-ink-muted print:text-black">
+                      {rateLabel(a.rate)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-1 flex items-end justify-between gap-4">
             <div>

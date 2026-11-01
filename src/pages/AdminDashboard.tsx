@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { pricing } from '../config/pricing';
 import { theater } from '../config/theater';
+import { rateLabel } from '../utils/studentCode';
 import type { BookingRecord } from '../types';
 import {
   formatCurrency,
@@ -24,6 +25,9 @@ function normalizeSearch(value: string): string {
 }
 
 function bookingSearchText(booking: BookingRecord): string {
+  const attendeesText = (booking.attendees ?? [])
+    .map((a) => `${a.firstName} ${a.lastName} ${a.studentCode}`)
+    .join(' ');
   return normalizeSearch(
     [
       booking.reference,
@@ -31,7 +35,7 @@ function bookingSearchText(booking: BookingRecord): string {
       booking.last_name,
       `${booking.first_name} ${booking.last_name}`,
       booking.phone,
-      booking.student_code ?? '',
+      attendeesText,
       booking.performance_date,
       booking.showtime_time,
     ].join(' '),
@@ -158,7 +162,10 @@ export function AdminDashboard() {
   const pendingCount = bookings.filter((b) => b.status === 'pending').length;
   const totalTickets = paid.reduce((sum, b) => sum + b.quantity, 0);
   const totalRevenue = paid.reduce((sum, b) => sum + b.total_price, 0);
-  const studentBookings = paid.filter((b) => b.is_student).length;
+  const studentTickets = paid.reduce(
+    (sum, b) => sum + (b.attendees ?? []).filter((a) => a.rate === 'student').length,
+    0,
+  );
 
   const nightlySales = useMemo(() => {
     const byDate = new Map<
@@ -299,7 +306,7 @@ export function AdminDashboard() {
       <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="تعداد بلیت‌ها" value={toPersianDigits(totalTickets)} />
         <Stat label="درآمد کل" value={formatCurrency(totalRevenue, pricing.currency)} />
-        <Stat label="سفارش دانشجویی" value={toPersianDigits(studentBookings)} />
+        <Stat label="بلیت دانشجویی" value={toPersianDigits(studentTickets)} />
         <Stat label="در انتظار تأیید" value={toPersianDigits(pendingCount)} />
       </div>
 
@@ -389,8 +396,7 @@ export function AdminDashboard() {
                   'نام خانوادگی',
                   'موبایل',
                   'تعداد',
-                  'نوع',
-                  'کد دانشجویی',
+                  'بلیت‌ها',
                   'تاریخ اجرا',
                   'سانس',
                   'مبلغ',
@@ -418,10 +424,18 @@ export function AdminDashboard() {
                   <td className="border-b border-line px-3 py-2" dir="ltr">{b.phone}</td>
                   <td className="border-b border-line px-3 py-2">{toPersianDigits(b.quantity)}</td>
                   <td className="border-b border-line px-3 py-2">
-                    {b.is_student ? 'دانشجویی' : 'عادی'}
-                  </td>
-                  <td className="border-b border-line px-3 py-2" dir="ltr">
-                    {b.student_code ?? '—'}
+                    {b.attendees && b.attendees.length > 0 ? (
+                      <div className="space-y-0.5">
+                        {b.attendees.map((a, i) => (
+                          <div key={i} className="whitespace-nowrap">
+                            {a.firstName} {a.lastName} ·{' '}
+                            <span className="text-ink-muted">{rateLabel(a.rate)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-ink-muted">—</span>
+                    )}
                   </td>
                   <td className="border-b border-line px-3 py-2">
                     {formatPerformanceDate(b.performance_date)}

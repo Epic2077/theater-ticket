@@ -3,9 +3,10 @@
  * Not part of the app build; validates the pure booking logic.
  */
 import { normalizeIranianMobile } from '../src/utils/phone';
-import { unitPrice, totalPrice, pricing } from '../src/config/pricing';
+import { unitPrice, totalPriceFor, pricing } from '../src/config/pricing';
 import { performances, findPerformance } from '../src/data/performances';
 import { validateBooking } from '../src/utils/validation';
+import { classifyStudentCode } from '../src/utils/studentCode';
 import { formatPerformanceDate, formatCurrency } from '../src/utils/format';
 
 let failures = 0;
@@ -28,11 +29,25 @@ check('reject landline prefix', normalizeIranianMobile('02123456789') === null);
 check('reject too short', normalizeIranianMobile('0912345') === null);
 check('reject garbage', normalizeIranianMobile('hello') === null);
 
+// Student-code classification
+check('empty code → regular', classifyStudentCode('') === 'regular');
+check('free code → free', classifyStudentCode('919392077') === 'free');
+check('39000000 → student', classifyStudentCode('39000000') === 'student');
+check('40499999 → student', classifyStudentCode('40499999') === 'student');
+check('40500000 → invalid', classifyStudentCode('40500000') === null);
+check('38999999 → invalid', classifyStudentCode('38999999') === null);
+check('short code → invalid', classifyStudentCode('3901234') === null);
+check('letters → invalid', classifyStudentCode('abcdefgh') === null);
+
 // Pricing
-check('regular unit price', unitPrice(false) === pricing.regularTicketPrice);
-check('student unit price', unitPrice(true) === pricing.studentTicketPrice);
-check('total = qty × unit (regular)', totalPrice(3, false) === 3 * pricing.regularTicketPrice);
-check('total = qty × unit (student)', totalPrice(2, true) === 2 * pricing.studentTicketPrice);
+check('regular price', unitPrice('regular') === pricing.regularTicketPrice);
+check('student price', unitPrice('student') === pricing.studentTicketPrice);
+check('free price', unitPrice('free') === pricing.freeTicketPrice);
+check('prices set correctly', pricing.regularTicketPrice === 125000 && pricing.studentTicketPrice === 85000);
+check(
+  'total sums rates',
+  totalPriceFor(['regular', 'student', 'free']) === 125000 + 85000 + 0,
+);
 
 // Performances
 check('performances generated', performances.length > 0);
@@ -44,104 +59,73 @@ console.log('  first date (fa):', formatPerformanceDate(performances[0].dateISO)
 
 // Validation — empty form
 const empty = validateBooking({
-  firstName: ' ',
-  lastName: '',
   phone: '123',
   quantity: 0,
   performanceId: '',
   showtimeId: '',
-  studentCode: '',
+  attendees: [{ firstName: ' ', lastName: '', studentCode: '' }],
 });
-check('empty form: firstName error', Boolean(empty.errors.firstName));
-check('empty form: lastName error', Boolean(empty.errors.lastName));
 check('empty form: phone error', Boolean(empty.errors.phone));
 check('empty form: quantity error', Boolean(empty.errors.quantity));
 check('empty form: performance error', Boolean(empty.errors.performanceId));
+check('empty form: firstName error', Boolean(empty.errors.attendees?.[0]?.firstName));
+check('empty form: lastName error', Boolean(empty.errors.attendees?.[0]?.lastName));
 check('empty form: no request', !empty.request);
 
 // Validation — quantity cap
 const overCap = validateBooking({
-  firstName: 'آزما',
-  lastName: 'آزمایشی',
   phone: '+98 912 345 6789',
   quantity: pricing.maxTicketsPerOrder + 1,
   performanceId: performances[0].id,
   showtimeId: performances[0].showtimes[0].id,
-  studentCode: '',
+  attendees: [{ firstName: 'آزما', lastName: 'آزمایشی', studentCode: '' }],
 });
 check('over-cap quantity rejected', Boolean(overCap.errors.quantity));
 
 // Validation — unknown / fake date rejected
 const fakeDate = validateBooking({
-  firstName: 'آزما',
-  lastName: 'آزمایشی',
   phone: '09123456789',
   quantity: 1,
   performanceId: 'perf-1999-01-01',
   showtimeId: 'evening',
-  studentCode: '12345',
+  attendees: [{ firstName: 'آزما', lastName: 'آزمایشی', studentCode: '' }],
 });
 check('unscheduled date rejected', Boolean(fakeDate.errors.performanceId));
 
-// Validation — fully valid
+// Validation — valid, mixed rates
 const perf = performances[0];
 const valid = validateBooking({
-  firstName: ' آزما ',
-  lastName: ' آزمایشی ',
   phone: '+989123456789',
-  quantity: 2,
+  quantity: 3,
   performanceId: perf.id,
   showtimeId: perf.showtimes[0].id,
-  studentCode: ' ۱۲۳۴۵ ',
+  attendees: [
+    { firstName: ' آزما ', lastName: ' آزمایشی ', studentCode: '' },
+    { firstName: 'دانشجو', lastName: 'دانش', studentCode: ' ۳۹۰۱۲۳۴۵ ' },
+    { firstName: 'رایگان', lastName: 'رایگان', studentCode: '919392077' },
+  ],
 });
 check('valid form passes', Boolean(valid.request));
-check('names trimmed', valid.request?.firstName === 'آزما' && valid.request?.lastName === 'آزمایشی');
+check('names trimmed', valid.request?.attendees[0].firstName === 'آزما');
 check('phone normalized in request', valid.request?.phone === '09123456789');
-check('valid request is student', valid.request?.isStudent === true);
+check('student code normalized', valid.request?.attendees[1].studentCode === '39012345');
 check(
-  'expectedTotal uses student price',
-  valid.request?.expectedTotal === 2 * pricing.studentTicketPrice,
+  'total = regular + student + free',
+  valid.request?.expectedTotal === 125000 + 85000 + 0,
 );
 
-// Student code → student rate + normalization
-const student = validateBooking({
-  firstName: 'آزما',
-  lastName: 'آزمایشی',
+// Validation — invalid student code rejected
+const bad = validateBooking({
   phone: '09123456789',
   quantity: 1,
   performanceId: perf.id,
   showtimeId: perf.showtimes[0].id,
-  studentCode: ' ۱۲۳۴۵ ',
+  attendees: [{ firstName: 'آزما', lastName: 'آزمایشی', studentCode: '12345' }],
 });
-check('student code applies student rate', student.request?.isStudent === true);
-check('student code normalized', student.request?.studentCode === '12345');
-check('student total uses student price', student.request?.expectedTotal === pricing.studentTicketPrice);
-
-const badStudent = validateBooking({
-  firstName: 'آزما',
-  lastName: 'آزمایشی',
-  phone: '09123456789',
-  quantity: 1,
-  performanceId: perf.id,
-  showtimeId: perf.showtimes[0].id,
-  studentCode: 'ab',
-});
-check('invalid student code rejected', Boolean(badStudent.errors.studentCode));
-
-const regular = validateBooking({
-  firstName: 'آزما',
-  lastName: 'آزمایشی',
-  phone: '09123456789',
-  quantity: 2,
-  performanceId: perf.id,
-  showtimeId: perf.showtimes[0].id,
-  studentCode: '',
-});
-check('empty student code is regular', regular.request?.isStudent === false);
-check('regular total uses regular price', regular.request?.expectedTotal === 2 * pricing.regularTicketPrice);
+check('invalid student code rejected', Boolean(bad.errors.attendees?.[0]?.studentCode));
 
 // Formatting
-check('currency formatting', formatCurrency(350000, 'تومان') === '۳۵۰٬۰۰۰ تومان');
+check('currency formatting', formatCurrency(125000, 'تومان') === '۱۲۵٬۰۰۰ تومان');
 check('findPerformance roundtrip', findPerformance(perf.id)?.dateISO === perf.dateISO);
 
 if (failures > 0) {

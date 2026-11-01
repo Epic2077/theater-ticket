@@ -20,21 +20,33 @@ export interface CastMember {
   role: string;
 }
 
-export interface BookingFormValues {
+export type TicketRate = 'regular' | 'student' | 'free';
+
+/** One ticket holder. */
+export interface Attendee {
   firstName: string;
   lastName: string;
+  /** Empty = regular; "919392077" = free; a 390–404 code = student. */
+  studentCode: string;
+}
+
+/** An attendee with its resolved rate & price (used for display & storage). */
+export interface AttendeeRow extends Attendee {
+  rate: TicketRate;
+  price: number;
+}
+
+export interface BookingFormValues {
   phone: string;
   quantity: number;
   performanceId: string;
   showtimeId: string;
-  /** Optional student code; when provided the ticket is issued at the student rate. */
-  studentCode: string;
+  /** attendees[0] is the buyer; length always equals quantity. */
+  attendees: Attendee[];
 }
 
 /** Normalized, validated booking payload ready for the backend. */
 export interface BookingRequest {
-  firstName: string;
-  lastName: string;
   /** Normalized Iranian mobile: "09xxxxxxxxx". */
   phone: string;
   quantity: number;
@@ -44,14 +56,12 @@ export interface BookingRequest {
   performanceDateISO: string;
   /** 24-hour "HH:MM" of the selected showtime. */
   showtimeTime: string;
-  /** Normalized student code; empty string for a regular ticket. */
-  studentCode: string;
-  isStudent: boolean;
-  /** Client-computed hint only — the server MUST recalculate the total. */
+  attendees: Attendee[];
+  /** Client-computed total (Toman) — the server recomputes it too. */
   expectedTotal: number;
 }
 
-export type BookingStatus = 'demo' | 'pending' | 'confirmed' | 'failed';
+export type BookingStatus = 'demo' | 'confirmed';
 
 export interface BookingResult {
   reference: string;
@@ -67,11 +77,10 @@ export interface TicketData {
   statusNote: string;
   buyerFullName: string;
   quantity: number;
-  isStudent: boolean;
+  totalPrice: number;
+  attendees: AttendeeRow[];
   performanceDateISO: string;
   showtime: string;
-  unitPrice: number;
-  totalPrice: number;
   issuedAtISO: string;
 }
 
@@ -83,19 +92,27 @@ export interface BookingRecord {
   last_name: string;
   phone: string;
   quantity: number;
-  is_student: boolean;
-  student_code: string | null;
-  performance_id: string;
   performance_date: string;
-  showtime_id: string;
   showtime_time: string;
-  unit_price: number;
   total_price: number;
   status: string;
   status_note: string | null;
   created_at: string;
   receipt_path: string | null;
   paid_at: string | null;
+  attendees: AttendeeRow[] | null;
 }
 
-export type BookingErrors = Partial<Record<keyof BookingFormValues, string>>;
+export interface AttendeeErrors {
+  firstName?: string;
+  lastName?: string;
+  studentCode?: string;
+}
+
+export interface BookingErrors {
+  phone?: string;
+  quantity?: string;
+  performanceId?: string;
+  showtimeId?: string;
+  attendees?: AttendeeErrors[];
+}
