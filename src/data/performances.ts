@@ -11,8 +11,6 @@ const showtimes: Showtime[] = [
 ];
 
 export const performances: Performance[] = [
-  { id: 'perf-2026-11-02', dateISO: '2026-11-02', showtimes }, // ۱۱ آبان
-  { id: 'perf-2026-11-03', dateISO: '2026-11-03', showtimes }, // ۱۲ آبان
   { id: 'perf-2026-11-04', dateISO: '2026-11-04', showtimes }, // ۱۳ آبان
 ];
 
